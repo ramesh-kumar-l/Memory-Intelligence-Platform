@@ -2,33 +2,42 @@
 
 **Read at every session boot.** Overwritten at the end of every session; keep under ~80 lines.
 
-**Session date:** 2026-07-07
+**Session date:** 2026-07-07 (session 2)
 
 ---
 
 ## What this session did
 
-Foundation session (docs only, no code). Rewrote `CLAUDE.md` as the single token-efficient system prompt (session boot protocol, task→file routing table, phase gates). Authored all missing operational memory bank docs: `03-system-architecture.md`, `05-api-design.md`, `07-current-state.md`, `08-roadmap.md`, `09-phase-plan.md`, `18-ui-design-system.md`, `20-testing-strategy.md`, `21-coding-standards.md`, `26-active-initiatives.md`, this file, and `adr/` (template + ADR-0001 + ADR-0002).
+Implemented **Phase 1 — Core Memory Engine** end to end in `backend/` (user approved the phase; per-task stop-gates waived by explicit instruction to complete the phase):
 
-## Decisions made (user-approved)
+1. Scaffold: `pyproject.toml` (ruff, mypy --strict, pytest+coverage), venv, README, .gitignore.
+2. Core domain (`mip/core/`): frozen pydantic MemoryObject with all 11 schema sections; MEM-* error registry (`errors.py`, append-only); `CreateMemorySpec`/`UpdateMemorySpec`; INV-* activation checks; injectable Clock.
+3. State machine (`core/states.py`): 11 states, exactly 13 legal transitions, `assert_legal` → MEM-2001.
+4. Event sourcing (`mip/events/`): 14 event types (transition↔event bijection); `projector.apply_event` is the single write path for live ops **and** rebuild.
+5. Storage (`mip/storage/`): ABCs + SQLite adapters (WAL, explicit transactions, nested-scope join); no SQL outside `storage/sqlite/`.
+6. Engines: ValidationEngine; MemoryManager (create pipeline, If-Match update→v N+1, idempotent archive/restore/delete, per-memory LockRegistry, rebuild).
+7. API (`mip/api/`): all Phase 1 endpoints, success/error envelopes, Idempotency-Key replay, MIP-API-Version negotiation, request/trace ids, lifespan DB close.
+8. Tests (208): invariant suites (ID/STATE/VER/CONCUR + activation branches), full 13-legal + 108-illegal matrix, replay identity, API contract, idempotency.
 
-* Backend: Python 3.12 + FastAPI + SQLite (sqlite-vec later), pluggable repositories → `adr/ADR-0001-backend-stack.md`.
-* Frontend: React + TypeScript + Vite → `adr/ADR-0002-frontend-stack.md`.
-* CLAUDE.md rewritten in place as the system prompt; Constitution remains separate authority.
-* Foundation session delivers docs only; Phase 1 starts after explicit approval.
+## Decisions made
+
+* **ADR-0003** (accepted): state machine's 11 states authoritative; tombstone deletion; only `Active→Deleted` legal (archived must be restored first); prose "ValidationFailed allows Delete" not implemented — table wins.
+* Python 3.14 in use locally (satisfies `>=3.12`).
+* Unexpected-500s map to `MEM-6002` (Storage category) — revisit if a Runtime category is ever added to the contract.
 
 ## Next steps
 
-1. User reviews foundation docs.
-2. User answers the open question below.
-3. On approval: begin Phase 1, task 1 (repo scaffold) per `09-phase-plan.md`. Load: `03`, `05`, `20`, `21`, `30-memory/02–04`.
+1. User reviews Phase 1 (run gates: `backend/` → `ruff check . ; mypy ; pytest`).
+2. Optionally commit (`git add backend project-memory-bank CLAUDE.md ...` — nothing committed yet).
+3. On approval: **Phase 2 task 1** (FTS5 keyword search + pagination). Load `03`, `05`, `30-memory/05-memory-api-contract.md`, `20`.
 
 ## Open questions (need user input)
 
-1. **Lifecycle enum mismatch:** schema spec (`30-memory/02`) lists 7 states; state machine spec (`30-memory/03`) defines 11. Recommendation: treat the state machine as authoritative and additively extend the schema enum (requires a small spec update + note in ADR or changelog). Confirm before Phase 1 task 3.
-2. Deletion policy for local deployment (hard delete vs tombstone) is deferred by the specs to "deployment mode" — Phase 1 will default to tombstone (event retained, content purged on request) unless directed otherwise.
+1. Approve Phase 2 start?
+2. Who edits `30-memory/02-memory-schema.md` state enum (additive, per ADR-0003)? Recommend user applies it since 30-memory specs are normative user-owned docs.
 
 ## Watch out for
 
-* Keep `07` / `26` / `29` under ~80 lines — they load every session.
-* Specs use `PRD/00-PRD-Overview.md` in some Depends-On references, but the file lives at `project-memory-bank/00-PRD-Overview.md` — path drift in spec headers, harmless, don't "fix" code against it.
+* Keep every source file < 300 lines (user rule, session 2). Largest is `engines/memory_manager/engine.py` (~250) — split before extending.
+* `uvicorn mip.api.main:app` (module-level app lives in `main.py`, not `app.py`, to avoid import-time DB creation).
+* Windows: background shells may lack `python` on PATH — use `py` or the venv's `python.exe`.
