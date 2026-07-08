@@ -10,7 +10,9 @@ from mip_cli.formatting import print_json, print_table
 
 @click.command("search")
 @click.argument("query")
-@click.option("--mode", type=click.Choice(["keyword", "semantic", "hybrid"]), default="hybrid")
+@click.option(
+    "--mode", type=click.Choice(["keyword", "semantic", "hybrid", "graph"]), default="hybrid"
+)
 @click.option("--namespace", default=None)
 @click.option("--limit", type=int, default=None)
 @click.option("--continuation-token", default=None)
@@ -24,8 +26,9 @@ def search(
     limit: int | None,
     continuation_token: str | None,
 ) -> None:
-    """Search Memory Objects (keyword/semantic/hybrid); every result carries
-    its own score breakdown — explainable by construction.
+    """Search Memory Objects (keyword/semantic/hybrid/graph); every result
+    carries its own score breakdown — explainable by construction. For
+    --mode graph, QUERY is the seed memory_id (ADR-0006).
     """
     response = ctx.obj["client"].search.search(
         query=query,

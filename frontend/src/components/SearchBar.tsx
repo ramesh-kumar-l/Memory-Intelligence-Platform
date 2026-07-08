@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import "./SearchBar.css";
 
-export type SearchMode = "keyword" | "semantic" | "hybrid";
+export type SearchMode = "keyword" | "semantic" | "hybrid" | "graph";
 
 export interface SearchBarProps {
   query: string;
@@ -56,7 +56,11 @@ export function SearchBar({
         id="search-bar-query"
         ref={inputRef}
         type="search"
-        placeholder="Search memories… (press / to focus)"
+        placeholder={
+          mode === "graph"
+            ? "Seed memory ID… (press / to focus)"
+            : "Search memories… (press / to focus)"
+        }
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
       />
@@ -71,6 +75,7 @@ export function SearchBar({
         <option value="hybrid">Hybrid</option>
         <option value="keyword">Keyword</option>
         <option value="semantic">Semantic</option>
+        <option value="graph">Graph</option>
       </select>
       <label className="visually-hidden" htmlFor="search-bar-namespace">
         Namespace filter

@@ -99,6 +99,7 @@ export function sampleMemoryRecord(overrides: Partial<MemoryRecord> = {}): Memor
     updated_at: null,
     archived_at: null,
     deleted_at: null,
+    consolidation_count: 0,
   };
   return { ...base, ...overrides };
 }

@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS memories (
     created_at TEXT NOT NULL,
     updated_at TEXT,
     archived_at TEXT,
-    deleted_at TEXT
+    deleted_at TEXT,
+    consolidation_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_memories_namespace_state ON memories(namespace, state);
 
@@ -78,6 +79,17 @@ CREATE TABLE IF NOT EXISTS vector_rowids (
     memory_id TEXT PRIMARY KEY,
     rowid INTEGER NOT NULL UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS memory_relationship_edges (
+    relationship_id TEXT PRIMARY KEY,
+    source_memory_id TEXT NOT NULL,
+    target_memory_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    confidence REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_edges_source ON memory_relationship_edges(source_memory_id);
+CREATE INDEX IF NOT EXISTS idx_edges_target ON memory_relationship_edges(target_memory_id);
 """
 
 _VECTOR_TABLE_DDL = (

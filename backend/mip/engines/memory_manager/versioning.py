@@ -36,6 +36,7 @@ def build_next_version(
         freshness=spec.freshness,
         verification_status=spec.verification_status,
         evidence=spec.evidence,
+        source_count=spec.source_count,
     )
     updates: dict[str, Any] = {
         "content": current.content.model_copy(update=content_changes),

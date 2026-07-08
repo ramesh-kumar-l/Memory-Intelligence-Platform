@@ -70,8 +70,16 @@
 }
 
 .memory-detail__relationships {
-  margin: 0;
+  margin: 0 0 var(--space-3);
   padding-left: var(--space-4);
+}
+
+.memory-detail__relationships-panel h3 {
+  font-size: var(--text-body-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-1);
 }
 
 .memory-detail__trust {

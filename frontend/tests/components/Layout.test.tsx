@@ -22,6 +22,7 @@ describe("Layout", () => {
     renderLayout();
     expect(screen.getByRole("link", { name: "Memories" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Search" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Intelligence" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
 

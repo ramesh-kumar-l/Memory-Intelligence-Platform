@@ -78,6 +78,7 @@ class UpdateMemoryRequest(BaseModel):
     freshness: float | None = Field(default=None, ge=0.0, le=1.0)
     verification_status: VerificationStatus | None = None
     evidence: tuple[dict[str, Any], ...] | None = None
+    source_count: int | None = Field(default=None, ge=0)
     extensions: dict[str, Any] | None = None
     update_reason: str | None = None
     updated_by: str | None = None
@@ -109,3 +110,31 @@ class ContextRequest(BaseModel):
     mode: str = "hybrid"
     limit: int | None = None
     continuation_token: str | None = None
+
+
+class ConsolidateRequest(BaseModel):
+    """Phase 4 task 2 (ADR-0006): merge duplicates via relationships."""
+
+    model_config = STRICT
+
+    primary_memory_id: str
+    duplicate_memory_ids: tuple[str, ...]
+
+
+class LearnRequest(BaseModel):
+    """Phase 4 task 3 (ADR-0006): derived semantics + trust maturation."""
+
+    model_config = STRICT
+
+    memory_id: str
+    derived: Semantics | None = None
+    new_evidence: tuple[dict[str, Any], ...] = ()
+    verifier: str | None = None
+    reason: str = Field(min_length=1)
+    actor: str | None = None
+
+
+class ExportRequest(BaseModel):
+    model_config = STRICT
+
+    namespace: str | None = None

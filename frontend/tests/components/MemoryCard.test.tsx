@@ -16,6 +16,7 @@ const RECORD = {
   updated_at: null,
   archived_at: null,
   deleted_at: null,
+  consolidation_count: 0,
 };
 
 describe("MemoryCard", () => {

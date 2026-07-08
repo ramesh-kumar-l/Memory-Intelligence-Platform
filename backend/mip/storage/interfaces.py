@@ -34,6 +34,7 @@ class MemoryRecord(BaseModel):
     updated_at: datetime | None = None
     archived_at: datetime | None = None
     deleted_at: datetime | None = None
+    consolidation_count: int = 0
 
 
 class VersionInfo(BaseModel):
@@ -70,6 +71,19 @@ class VectorHit(BaseModel):
 
     memory_id: str
     distance: float
+
+
+class GraphEdge(BaseModel):
+    """One relationship edge, projected from a Memory Object's Section 5 (ADR-0006)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    relationship_id: str
+    source_memory_id: str
+    target_memory_id: str
+    type: str
+    direction: str
+    confidence: float
 
 
 class TransactionManagerABC(ABC):
@@ -124,6 +138,10 @@ class MemoryRepositoryABC(ABC):
 
     @abstractmethod
     def set_state(self, memory_id: str, state: MemoryState, changed_at: datetime) -> None: ...
+
+    @abstractmethod
+    def record_consolidation(self, memory_id: str, consolidated_at: datetime) -> None:
+        """Increment consolidation_count on the primary of a merge (ADR-0006)."""
 
     @abstractmethod
     def list_records(
@@ -198,6 +216,24 @@ class VectorIndexABC(ABC):
     @abstractmethod
     def search(self, embedding: tuple[float, ...], *, limit: int) -> list[VectorHit]:
         """Nearest neighbors by L2 distance (closest first); at most `limit` results."""
+
+    @abstractmethod
+    def clear_all(self) -> None:
+        """Wipe the index (rebuild only)."""
+
+
+class GraphIndexABC(ABC):
+    """Relationship-graph adjacency index — a regenerable projection derived
+    from each memory's `relationships` field (ADR-0006), never the source of truth.
+    """
+
+    @abstractmethod
+    def index_relationships(self, memory_id: str, edges: tuple[GraphEdge, ...]) -> None:
+        """Replace all outbound edges for one memory."""
+
+    @abstractmethod
+    def edges_touching(self, memory_id: str) -> list[GraphEdge]:
+        """All edges where memory_id is source or target (for neighbor expansion)."""
 
     @abstractmethod
     def clear_all(self) -> None:

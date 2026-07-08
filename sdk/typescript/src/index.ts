@@ -20,7 +20,9 @@ export {
 } from "./errors.js";
 export type { FetchLike } from "./http.js";
 export { AdminResource, type HealthReport, type VersionReport } from "./resources/admin.js";
+export { ConsolidateResource, LearnResource } from "./resources/intelligence.js";
 export { MemoriesResource } from "./resources/memories.js";
+export { PortabilityResource } from "./resources/portability.js";
 export { ContextResource, ExplainResource, SearchResource } from "./resources/retrieval.js";
 export * from "./types.js";
 

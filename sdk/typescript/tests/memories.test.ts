@@ -140,4 +140,31 @@ describe("MemoriesResource", () => {
     expect(versions).toHaveLength(1);
     expect(versions[0]?.version).toBe(1);
   });
+
+  it("relationships() returns graph edges touching the memory", async () => {
+    const client = new MIPClient("http://mip.test", {
+      fetchImpl: fakeFetch(async (req) => {
+        expect(req.url).toBe(`http://mip.test/v1/memories/${MEMORY_ID}/relationships`);
+        return jsonResponse(
+          envelope({
+            memory_id: MEMORY_ID,
+            relationships: [
+              {
+                relationship_id: "rel-1",
+                source_memory_id: MEMORY_ID,
+                target_memory_id: "other-id",
+                type: "references",
+                direction: "outbound",
+                confidence: 1.0,
+              },
+            ],
+          }),
+        );
+      }),
+    });
+
+    const view = await client.memories.relationships(MEMORY_ID);
+    expect(view.relationships).toHaveLength(1);
+    expect(view.relationships[0]?.target_memory_id).toBe("other-id");
+  });
 });

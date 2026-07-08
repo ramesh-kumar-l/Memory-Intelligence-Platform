@@ -14,7 +14,7 @@ from mip.storage.sqlite.database import Database
 
 _RECORD_COLUMNS = (
     "memory_id, namespace, owner_id, object_type, title, state, current_version, "
-    "created_at, updated_at, archived_at, deleted_at"
+    "created_at, updated_at, archived_at, deleted_at, consolidation_count"
 )
 
 
@@ -27,7 +27,7 @@ class SqliteMemoryRepository(MemoryRepositoryABC):
         try:
             self._db.execute(
                 f"INSERT INTO memories ({_RECORD_COLUMNS}) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0)",
                 (
                     memory.memory_id,
                     memory.identity.namespace,
@@ -68,6 +68,7 @@ class SqliteMemoryRepository(MemoryRepositoryABC):
             updated_at=record.updated_at,
             archived_at=record.archived_at,
             deleted_at=record.deleted_at,
+            consolidation_count=record.consolidation_count,
         )
 
     def publish_version(
@@ -108,6 +109,13 @@ class SqliteMemoryRepository(MemoryRepositoryABC):
             self._db.execute(
                 "UPDATE memories SET state = ? WHERE memory_id = ?", (state.value, memory_id)
             )
+
+    def record_consolidation(self, memory_id: str, consolidated_at: datetime) -> None:
+        self._db.execute(
+            "UPDATE memories SET consolidation_count = consolidation_count + 1, updated_at = ? "
+            "WHERE memory_id = ?",
+            (consolidated_at.isoformat(), memory_id),
+        )
 
     def list_records(
         self,
@@ -205,4 +213,5 @@ def _to_record(row: tuple[Any, ...]) -> MemoryRecord:
         updated_at=None if row[8] is None else datetime.fromisoformat(row[8]),
         archived_at=None if row[9] is None else datetime.fromisoformat(row[9]),
         deleted_at=None if row[10] is None else datetime.fromisoformat(row[10]),
+        consolidation_count=int(row[11]),
     )

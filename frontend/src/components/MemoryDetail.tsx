@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { useConsolidate, useRelationships } from "../hooks/useIntelligence";
 import {
   useArchiveMemory,
   useDeleteMemory,
@@ -35,10 +36,12 @@ export function MemoryDetail({ memoryId, onClose }: MemoryDetailProps) {
 
   const memoryQuery = useMemory(memoryId, selectedVersion);
   const versionsQuery = useMemoryVersions(memoryId);
+  const relationshipsQuery = useRelationships(tab === "relationships" ? memoryId : undefined);
   const explainQuery = useExplain(explainOpen ? { memory_id: memoryId } : undefined);
   const archiveMutation = useArchiveMemory(memoryId);
   const restoreMutation = useRestoreMemory(memoryId);
   const deleteMutation = useDeleteMemory(memoryId);
+  const consolidateMutation = useConsolidate();
 
   const latestVersion = useMemo(() => {
     if (!versionsQuery.data || versionsQuery.data.length === 0) return undefined;
@@ -125,18 +128,46 @@ export function MemoryDetail({ memoryId, onClose }: MemoryDetailProps) {
         ) : null}
 
         {tab === "relationships" ? (
-          memory.relationships.length > 0 ? (
-            <ul className="memory-detail__relationships">
-              {memory.relationships.map((rel) => (
-                <li key={rel.relationship_id}>
-                  <span className="mono">{rel.type}</span> → {rel.target_memory_id}
-                  {rel.unresolved ? <em> (unresolved)</em> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No relationships" description="This memory links to no others yet." />
-          )
+          <div className="memory-detail__relationships-panel">
+            <h3>Outbound</h3>
+            {memory.relationships.length > 0 ? (
+              <ul className="memory-detail__relationships">
+                {memory.relationships.map((rel) => (
+                  <li key={rel.relationship_id}>
+                    <span className="mono">{rel.type}</span> → {rel.target_memory_id}
+                    {rel.unresolved ? <em> (unresolved)</em> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="No outbound relationships" description="This memory links to no others yet." />
+            )}
+
+            <h3>Inbound</h3>
+            {relationshipsQuery.data ? (
+              (() => {
+                const inbound = relationshipsQuery.data.relationships.filter(
+                  (edge) => edge.target_memory_id === memory.memory_id,
+                );
+                return inbound.length > 0 ? (
+                  <ul className="memory-detail__relationships">
+                    {inbound.map((edge) => (
+                      <li key={edge.relationship_id}>
+                        <span className="mono">{edge.type}</span> ← {edge.source_memory_id}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <EmptyState
+                    title="No inbound relationships"
+                    description="No other memory references this one yet."
+                  />
+                );
+              })()
+            ) : (
+              <p role="status">Loading relationships…</p>
+            )}
+          </div>
         ) : null}
 
         {tab === "trust" ? (
@@ -174,6 +205,24 @@ export function MemoryDetail({ memoryId, onClose }: MemoryDetailProps) {
         {memory.lifecycle.state === "Archived" ? (
           <button type="button" onClick={() => restoreMutation.mutate()}>
             Restore
+          </button>
+        ) : null}
+        {memory.lifecycle.state === "Active" ? (
+          <button
+            type="button"
+            onClick={() => {
+              const primaryId = window.prompt(
+                "Merge this memory into which primary memory_id? (Phase 4 Consolidate — this memory is archived, history preserved)",
+              );
+              if (primaryId?.trim()) {
+                consolidateMutation.mutate({
+                  primary_memory_id: primaryId.trim(),
+                  duplicate_memory_ids: [memory.memory_id],
+                });
+              }
+            }}
+          >
+            Merge into…
           </button>
         ) : null}
         {memory.lifecycle.state !== "Deleted" ? (

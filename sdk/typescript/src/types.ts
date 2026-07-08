@@ -27,6 +27,9 @@ export type UpdateMemoryRequest = components["schemas"]["UpdateMemoryRequest"];
 export type SearchRequestBody = components["schemas"]["SearchRequest"];
 export type ExplainRequestBody = components["schemas"]["ExplainRequest"];
 export type ContextRequestBody = components["schemas"]["ContextRequest"];
+export type ConsolidateRequestBody = components["schemas"]["ConsolidateRequest"];
+export type LearnRequestBody = components["schemas"]["LearnRequest"];
+export type ExportRequestBody = components["schemas"]["ExportRequest"];
 
 export type MemoryState =
   | "Created"
@@ -162,6 +165,7 @@ export interface MemoryRecord {
   updated_at: string | null;
   archived_at: string | null;
   deleted_at: string | null;
+  consolidation_count: number;
 }
 
 export interface VersionInfo {
@@ -230,4 +234,46 @@ export interface ContextPackage {
   complete: boolean;
   total_candidates: number;
   continuation_token: string | null;
+}
+
+/** One relationship-graph edge (Phase 4 task 1, ADR-0006). */
+export interface GraphEdge {
+  relationship_id: string;
+  source_memory_id: string;
+  target_memory_id: string;
+  type: string;
+  direction: string;
+  confidence: number;
+}
+
+/** `GET /v1/memories/{id}/relationships` response. */
+export interface RelationshipsView {
+  memory_id: string;
+  relationships: GraphEdge[];
+}
+
+export interface ImportSkip {
+  memory_id: string;
+  reason: string;
+}
+
+export interface ImportRejection {
+  memory_id: string | null;
+  violations: Record<string, unknown>[];
+}
+
+/** `POST /v1/import` response (Phase 4 task 4, ADR-0006). */
+export interface ImportReport {
+  imported: string[];
+  skipped: ImportSkip[];
+  rejected: ImportRejection[];
+}
+
+/** `POST /v1/export` response — pass straight to `client.portability.import_()`. */
+export interface ExportBundle {
+  schema_version: string;
+  exported_at: string;
+  namespace: string | null;
+  memory_count: number;
+  memories: Record<string, unknown>[];
 }

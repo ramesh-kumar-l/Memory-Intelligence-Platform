@@ -15,8 +15,13 @@ from fastapi.testclient import TestClient
 from mip.api.app import create_app
 from mip.config import MIPSettings
 from mip.engines.context.engine import ContextEngine
+from mip.engines.knowledge.consolidate import ConsolidateEngine
+from mip.engines.knowledge.graph import GraphEngine
+from mip.engines.learning.engine import LearnEngine
 from mip.engines.memory_manager.engine import MemoryManager
 from mip.engines.memory_manager.locks import LockRegistry
+from mip.engines.portability.export_engine import ExportEngine
+from mip.engines.portability.import_engine import ImportEngine
 from mip.engines.retrieval.engine import RetrievalEngine
 from mip.engines.semantic.engine import SemanticEngine
 from mip.engines.trust.scoring import TrustEngine
@@ -25,6 +30,7 @@ from mip.providers.embeddings import EmbeddingProviderABC
 from mip.providers.local_embedding import LocalHashingEmbeddingProvider
 from mip.storage.sqlite.database import Database
 from mip.storage.sqlite.event_store import SqliteEventStore
+from mip.storage.sqlite.graph_index import SqliteGraphIndex
 from mip.storage.sqlite.idempotency_store import SqliteIdempotencyStore
 from mip.storage.sqlite.memory_repository import SqliteMemoryRepository
 from mip.storage.sqlite.search_index import Fts5SearchIndex
@@ -99,6 +105,11 @@ def vector_index(db: Database) -> SqliteVecVectorIndex:
 
 
 @pytest.fixture
+def graph_index(db: Database) -> SqliteGraphIndex:
+    return SqliteGraphIndex(db)
+
+
+@pytest.fixture
 def semantic() -> SemanticEngine:
     return SemanticEngine()
 
@@ -109,17 +120,24 @@ def trust() -> TrustEngine:
 
 
 @pytest.fixture
+def graph(graph_index: SqliteGraphIndex, repo: SqliteMemoryRepository) -> GraphEngine:
+    return GraphEngine(graph_index=graph_index, repository=repo)
+
+
+@pytest.fixture
 def retrieval(
     search_index: Fts5SearchIndex,
     vector_index: SqliteVecVectorIndex,
     embeddings: EmbeddingProviderABC,
     repo: SqliteMemoryRepository,
+    graph: GraphEngine,
 ) -> RetrievalEngine:
     return RetrievalEngine(
         search_index=search_index,
         vector_index=vector_index,
         embeddings=embeddings,
         repository=repo,
+        graph=graph,
         hybrid_keyword_weight=0.5,
     )
 
@@ -153,6 +171,36 @@ def manager(
         clock=clock,
         lock_timeout=0.2,  # keep INV-CONCUR-004 tests fast
     )
+
+
+@pytest.fixture
+def consolidate_engine(
+    manager: MemoryManager,
+    event_store: SqliteEventStore,
+    repo: SqliteMemoryRepository,
+    db: Database,
+    clock: TickingClock,
+) -> ConsolidateEngine:
+    return ConsolidateEngine(
+        manager=manager, event_store=event_store, repository=repo, transactions=db, clock=clock
+    )
+
+
+@pytest.fixture
+def learn_engine(manager: MemoryManager, trust: TrustEngine) -> LearnEngine:
+    return LearnEngine(manager=manager, trust=trust)
+
+
+@pytest.fixture
+def export_engine(manager: MemoryManager, clock: TickingClock) -> ExportEngine:
+    return ExportEngine(manager=manager, clock=clock, schema_version="1.0")
+
+
+@pytest.fixture
+def import_engine(
+    event_store: SqliteEventStore, repo: SqliteMemoryRepository, db: Database, clock: TickingClock
+) -> ImportEngine:
+    return ImportEngine(event_store=event_store, repository=repo, transactions=db, clock=clock)
 
 
 @pytest.fixture

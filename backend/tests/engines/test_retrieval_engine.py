@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 
 from mip.core import errors
+from mip.core.sections import RelationshipType
+from mip.core.specs import RelationshipSpec
 from mip.engines.memory_manager.engine import MemoryManager
 from mip.engines.retrieval.engine import RetrievalEngine
 from tests.factories import create_spec
@@ -113,8 +117,36 @@ def test_pagination_reports_has_more(manager: MemoryManager, retrieval: Retrieva
 
 def test_unsupported_mode_raises_mem_1007(retrieval: RetrievalEngine) -> None:
     with pytest.raises(errors.ValidationError) as exc_info:
-        retrieval.search("anything", mode="graph", namespace=None, limit=10, offset=0)
+        retrieval.search("anything", mode="timeline", namespace=None, limit=10, offset=0)
     assert exc_info.value.code == "MEM-1007"
+
+
+def test_graph_mode_ranks_by_hop_distance(
+    manager: MemoryManager, retrieval: RetrievalEngine
+) -> None:
+    hub = _create(manager, title="hub memory")
+    near = manager.create_memory(
+        create_spec(
+            title="near memory",
+            relationships=(
+                RelationshipSpec(target_memory_id=UUID(hub), type=RelationshipType.REFERENCES),
+            ),
+        ),
+        request_id="r",
+        trace_id="t",
+    )
+    results, _ = retrieval.search(hub, mode="graph", namespace=None, limit=10, offset=0)
+    assert [r.memory_id for r in results] == [near.memory_id]
+    assert results[0].score == 1.0
+
+
+def test_graph_mode_unreachable_seed_returns_empty(
+    manager: MemoryManager, retrieval: RetrievalEngine
+) -> None:
+    isolated = _create(manager, title="isolated memory")
+    results, has_more = retrieval.search(isolated, mode="graph", namespace=None, limit=10, offset=0)
+    assert results == []
+    assert not has_more
 
 
 def test_rebuild_indexes_repopulates_from_repository(

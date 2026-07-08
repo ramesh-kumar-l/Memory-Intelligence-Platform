@@ -1,0 +1,53 @@
+.intelligence-page__section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+  max-width: 560px;
+}
+
+.intelligence-page__section h2 {
+  margin-top: 0;
+}
+
+.intelligence-page__hint {
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.intelligence-page__section form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.intelligence-page__section input {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 40px;
+}
+
+.intelligence-page__section button {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.intelligence-page__portability-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.intelligence-page__status {
+  margin-top: var(--space-3);
+}

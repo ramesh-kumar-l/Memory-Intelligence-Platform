@@ -44,4 +44,10 @@ describe("SearchBar", () => {
     await user.keyboard("/");
     expect(namespaceInput).toHaveFocus();
   });
+
+  it("offers a graph mode and hints that the query is a seed memory ID", () => {
+    renderBar({ mode: "graph" });
+    expect(screen.getByRole("option", { name: "Graph" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Seed memory ID/)).toBeInTheDocument();
+  });
 });

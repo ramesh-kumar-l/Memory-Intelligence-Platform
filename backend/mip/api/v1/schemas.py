@@ -60,6 +60,7 @@ class UpdateMemoryRequest(BaseModel):
     freshness: float | None = Field(default=None, ge=0.0, le=1.0)
     verification_status: VerificationStatus | None = None
     evidence: tuple[dict[str, Any], ...] | None = None
+    source_count: int | None = Field(default=None, ge=0)
     extensions: dict[str, Any] | None = None
     update_reason: str | None = None
     updated_by: str | None = None

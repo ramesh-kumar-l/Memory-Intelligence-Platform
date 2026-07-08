@@ -2,72 +2,80 @@
 
 **Read at every session boot.** Overwritten at the end of every session; keep under ~80 lines.
 
-**Session date:** 2026-07-08 (session 4)
+**Session date:** 2026-07-09 (session 5)
 
 ---
 
 ## What this session did
 
-Implemented **Phase 3 — Developer Platform** end to end (user approved the phase and
-asked for the full scope in one pass, as with Phases 1–2):
+Implemented **Phase 4 — Intelligence** end to end (user approved the phase and asked for
+the full scope in one pass, as with Phases 1–3):
 
-1. ADR-0005: SDK/CLI/console architecture — layout, HTTP client choices, error-mapping
-   parity across SDKs, npm-workspace linking, type-generation strategy (and its
-   discovered limit — see below).
-2. `sdk/python` (`mip_sdk`): httpx-based client, pydantic v2 response/request models,
-   `MEM-*` typed error hierarchy, resources for memories/search/explain/context/admin.
-   30 tests (mock-transport unit tests + one live-app integration suite via
-   `fastapi.testclient.TestClient`, no mocks).
-3. `cli` (`mip_cli`): Click CLI on top of `mip_sdk`, `--json`/table output, typed error
-   printing. 16 tests (`click.testing.CliRunner` against the real backend app).
-4. `sdk/typescript` (`@mip/sdk`): `backend/scripts/export_openapi.py` → OpenAPI JSON →
-   `openapi-typescript` generates **request** types only (backend routes return raw
-   `JSONResponse`, not `response_model=`-typed bodies, so OpenAPI has no response
-   schema — response types in `src/types.ts` are hand-written, mirrored from the
-   Python SDK). fetch-based transport, same error-hierarchy shape as the Python SDK.
-   29 tests (mock `fetch` + a spawned-uvicorn live-server integration test).
-5. `frontend` console (React 18 + TS + Vite, npm workspace linked to `sdk/typescript`):
-   design tokens/global CSS per `18-ui-design-system.md`; components (MemoryCard,
-   StateBadge, TrustIndicator, ExplainPanel, LifecycleTimeline, SearchBar,
-   VersionSwitcher, Empty/ErrorState, MemoryDetail, Layout); pages (Memories, Search,
-   Settings) with TanStack Query hooks. 45 tests (Testing Library + jsdom).
-6. Quickstart docs (READMEs in each of the four new packages) + three runnable
-   examples (`examples/{python,typescript,cli}/quickstart.*`) — **all three were
-   actually executed against a live backend this session**, not just written.
+1. ADR-0006: graph/consolidate/learn/export-import/trust-maturation architecture — key
+   decision was reusing existing choke points (`RetrievalEngine.index_memory`,
+   `MemoryManager.update_memory`/`archive_memory`) instead of touching
+   `memory_manager/engine.py`, keeping the most stability-critical file untouched.
+2. **Graph** (task 1): `SqliteGraphIndex` (new `memory_relationship_edges` table) +
+   `GraphEngine` (BFS `neighbor_hops`, `rebuild()`); `RetrievalEngine` now composes it and
+   exposes a `graph` search mode (`query` reused as the seed `memory_id`, score =
+   `1/hop`). New read-only `GET /v1/memories/{id}/relationships`.
+3. **Consolidate** (task 2): `ConsolidateEngine` — pure orchestration over
+   `update_memory` (adds `duplicate_of` relationship) + `archive_memory` (existing,
+   idempotent); a new `MemoryConsolidated` event bumps `consolidation_count` (added as a
+   live-overlaid `MemoryRecord` column, same pattern as `archived_at`/`deleted_at`).
+4. **Learn** (task 3) + **trust maturation** (task 5): `LearnEngine` unions derived
+   semantics non-destructively and, via `mature_evidence()` (`engines/trust/maturation.py`),
+   appends evidence / bumps `source_count` / upgrades `verification_status` by an explicit
+   threshold table — folded into Learn rather than a new endpoint (05-api-design.md's
+   Phase 4 table doesn't list one). Both changes ride one `update_memory` call.
+5. **Export/Import** (task 4): `ExportEngine`/`ImportEngine` — fidelity target is "what
+   `GetMemory`/`ListVersions` already expose," not the raw event log. Import validates
+   every version of every memory (schema + `activation_violations`) before writing;
+   per-memory atomic, whole-bundle partial (`imported`/`skipped`/`rejected`); new event
+   types `MemoryImported`/`MemoryVersionImported` reuse existing `create`/`publish_version`/
+   `set_state` repository calls — no new SQL beyond the graph table.
+6. All 4 client surfaces updated: Python SDK (`consolidate`/`learn`/`portability`
+   resources), TypeScript SDK (regenerated OpenAPI types + same 3 resources), CLI
+   (`mip consolidate|learn|export|import`, `mip memories relationships`, `--mode graph`),
+   console (new **Intelligence** page: Consolidate/Learn/Export-Import forms; Memory
+   Detail's Relationships tab now shows inbound + outbound edges with a "Merge into…"
+   quick action; Search page has a Graph mode).
+7. Full stack smoke-tested against a live spawned backend (curl) in addition to all
+   automated suites, mirroring the Phase 3 verification pattern.
 
 ## Decisions made
 
-* **ADR-0005** (accepted) — see above.
-* Real bug caught by the live-backend integration tests (not the mock-based ones):
-  `GET /v1/memories` (list) and `.../versions` return lightweight `MemoryRecord`/
-  `VersionInfo` projections, not full `MemoryObject` — both SDKs and the CLI initially
-  assumed the wrong shape. Fixed in `mip_sdk.models.memory` / `@mip/sdk`'s `types.ts`
-  and `cli/mip_cli/commands/memories.py`. This is why the mock-transport tests alone
-  weren't sufficient — they encoded the same wrong assumption.
-* Console nav omits Graph (Phase 4) and a global Events feed (no backing endpoint
-  exists) — per-memory History tab (version list) covers explainable lifecycle history
-  instead. Documented as a scoped decision, not silently dropped.
-* No `create`/`update` memory forms in the console yet (read + lifecycle actions +
-  search only) — parked in `26-active-initiatives.md`.
+* **ADR-0006** (accepted) — see above; alternatives considered table covers why graph
+  reuses `query` (no new field), why Import doesn't replay the full creation pipeline, why
+  whole-bundle import isn't atomic, why trust maturation has no dedicated endpoint.
+* Two small additive gaps found and fixed mid-phase: `consolidation_count` needed a
+  live-overlay column (mirrors existing lifecycle fields); `source_count` had **no**
+  update path at all in `UpdateMemorySpec`/`UpdateMemoryRequest`/`build_next_version` —
+  added it (Phase 1 oversight, since confidence/freshness/verification_status/evidence
+  were all already updatable but source_count wasn't).
+* Import replays `consolidation_count` via synthetic `MemoryConsolidated` events using the
+  exported `updated_at` timestamp (not import time) — required a `_terminal_state_timestamp`
+  fix in the projector so Archived/Deleted memories reimport with their *original*
+  `archived_at`/`deleted_at`, not the import moment.
 
 ## Next steps
 
-1. User reviews Phase 3 (gates: each of `backend/`, `sdk/python/`, `cli/` →
-   `ruff check . ; ruff format --check . ; mypy ; pytest`; `sdk/typescript/`,
-   `frontend/` → `npm run lint ; npm run typecheck ; npm test ; npm run build`).
+1. User reviews Phase 4 (gates: each of `backend/`, `sdk/python/`, `cli/` →
+   `ruff check . ; ruff format --check . ; mypy ; pytest`; `sdk/typescript/`, `frontend/` →
+   `npm run lint ; npm run typecheck ; npm test ; npm run build`).
 2. Optionally commit (nothing committed yet).
-3. On approval: **Phase 4 — Intelligence** (graph, Consolidate, Learn, Export/Import,
-   trust maturation). Load `03-system-architecture.md`,
-   `30-memory/01-memory-object-model.md`, `30-memory/05-memory-api-contract.md`.
+3. `09-phase-plan.md`'s four phases are now all complete — no Phase 5 is defined. Discuss
+   direction with the user (see `26-active-initiatives.md`'s "Next up" candidates) before
+   starting any further work.
 
 ## Open questions (need user input)
 
-1. Approve Phase 4 start?
+1. What comes after Phase 4 — hardening pass, Sync Engine, or console UX polish?
 2. Who edits `30-memory/02-memory-schema.md` state enum (still open from Phase 1/ADR-0003)?
 
 ## Watch out for
 
-* Keep every source file < 300 lines — largest in the repo is `backend/tests/api/test_memories_api.py` (297, pre-existing) and `cli/mip_cli/commands/memories.py` (242, new).
-* Each of the 5 packages (`backend`, `sdk/python`, `cli`, `sdk/typescript`, `frontend`) has its own venv/`node_modules` — run gates from within each directory.
-* `sdk/typescript`'s `src/generated/schema.ts` is a build artifact — regenerate via `npm run generate:types`, never hand-edit.
-* Manual browser verification of the console was done via real API calls (curl) confirming exact response-shape matches, plus jsdom component/page tests — no visual/screenshot browser tool was available this session, so pixel-level layout/CSS was not eyeballed in a real browser viewport.
+* Keep every source file < 300 lines — largest in the repo is `backend/tests/api/test_memories_api.py` (297, pre-existing), all Phase 4 files comfortably under.
+* `sdk/typescript/src/generated/schema.ts` is a build artifact — regenerate via `npm run generate:types` after any backend request-schema change (already done this session).
+* Graph search reuses the `query` field as the seed `memory_id` — no separate field; don't add one without an ADR update.
+* Manual verification this session: live curl smoke test of all 5 new endpoints plus the SDK/CLI live-backend integration suites — no visual/screenshot browser tool was available, so console pixel-level layout was not eyeballed in a real viewport (same limitation as Phase 3).

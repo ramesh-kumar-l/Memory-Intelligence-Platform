@@ -4,7 +4,9 @@
 
 import { DEFAULT_API_VERSION, Transport, type FetchLike } from "./http.js";
 import { AdminResource } from "./resources/admin.js";
+import { ConsolidateResource, LearnResource } from "./resources/intelligence.js";
 import { MemoriesResource } from "./resources/memories.js";
+import { PortabilityResource } from "./resources/portability.js";
 import { ContextResource, ExplainResource, SearchResource } from "./resources/retrieval.js";
 
 export interface MIPClientOptions {
@@ -25,6 +27,9 @@ export class MIPClient {
   readonly explain: ExplainResource;
   readonly context: ContextResource;
   readonly admin: AdminResource;
+  readonly consolidate: ConsolidateResource;
+  readonly learn: LearnResource;
+  readonly portability: PortabilityResource;
 
   constructor(baseUrl: string, options: MIPClientOptions = {}) {
     const transport = new Transport(baseUrl, {
@@ -36,5 +41,8 @@ export class MIPClient {
     this.explain = new ExplainResource(transport);
     this.context = new ContextResource(transport);
     this.admin = new AdminResource(transport);
+    this.consolidate = new ConsolidateResource(transport);
+    this.learn = new LearnResource(transport);
+    this.portability = new PortabilityResource(transport);
   }
 }

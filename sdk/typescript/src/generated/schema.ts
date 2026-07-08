@@ -25,6 +25,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/consolidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consolidate Memories */
+        post: operations["consolidate_memories_v1_consolidate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/context": {
         parameters: {
             query?: never;
@@ -59,6 +76,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export Memories */
+        post: operations["export_memories_v1_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -70,6 +104,40 @@ export interface paths {
         get: operations["health_v1_health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Memories */
+        post: operations["import_memories_v1_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/learn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Learn Memory */
+        post: operations["learn_memory_v1_learn_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -124,6 +192,27 @@ export interface paths {
         put?: never;
         /** Archive Memory */
         post: operations["archive_memory_v1_memories__memory_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memories/{memory_id}/relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Relationships
+         * @description Graph edges touching one memory (Phase 4 task 1, ADR-0006) — a read-only
+         *     convenience view over the regenerable relationship-graph projection.
+         */
+        get: operations["list_relationships_v1_memories__memory_id__relationships_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -202,6 +291,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ConsolidateRequest */
+        ConsolidateRequest: {
+            /** Duplicate Memory Ids */
+            duplicate_memory_ids: string[];
+            /** Primary Memory Id */
+            primary_memory_id: string;
+        };
         /**
          * Context
          * @description Section 6 — retrieval context. Mutable by design (not part of version identity).
@@ -322,10 +418,45 @@ export interface components {
             /** Query */
             query?: string | null;
         };
+        /** ExportRequest */
+        ExportRequest: {
+            /** Namespace */
+            namespace?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImportRequest
+         * @description Accepts an Export bundle verbatim; only `memories` drives the pipeline —
+         *     `schema_version`/`exported_at`/`namespace`/`memory_count` are informational.
+         */
+        ImportRequest: {
+            /** Memories */
+            memories?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** LearnRequest */
+        LearnRequest: {
+            /** Actor */
+            actor?: string | null;
+            derived?: components["schemas"]["Semantics"] | null;
+            /** Memory Id */
+            memory_id: string;
+            /**
+             * New Evidence
+             * @default []
+             */
+            new_evidence?: {
+                [key: string]: unknown;
+            }[];
+            /** Reason */
+            reason: string;
+            /** Verifier */
+            verifier?: string | null;
         };
         /**
          * ObjectType
@@ -471,6 +602,8 @@ export interface components {
             /** Relationships */
             relationships?: components["schemas"]["RelationshipSpec"][] | null;
             semantics?: components["schemas"]["Semantics"] | null;
+            /** Source Count */
+            source_count?: number | null;
             /** Summary */
             summary?: string | null;
             /** Title */
@@ -524,6 +657,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    consolidate_memories_v1_consolidate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsolidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -594,6 +760,39 @@ export interface operations {
             };
         };
     };
+    export_memories_v1_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_v1_health_get: {
         parameters: {
             query?: never;
@@ -610,6 +809,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    import_memories_v1_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    learn_memory_v1_learn_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -781,6 +1046,37 @@ export interface operations {
         };
     };
     archive_memory_v1_memories__memory_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_relationships_v1_memories__memory_id__relationships_get: {
         parameters: {
             query?: never;
             header?: never;

@@ -8,21 +8,21 @@ original stored result; the same key with a different payload is MEM-4003.
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 from collections.abc import Callable
-from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from mip.api.responses import envelope, json_response
+from mip.api.v1.idempotency import body_hash as _body_hash
+from mip.api.v1.idempotency import idempotent_replay as _idempotent_replay
+from mip.api.v1.idempotency import idempotent_store as _idempotent_store
 from mip.api.v1.pagination import decode_token, encode_token
 from mip.api.v1.schemas import CreateMemoryRequest, UpdateMemoryRequest
 from mip.core import errors
 from mip.core.states import MemoryState
+from mip.engines.knowledge.graph import GraphEngine
 from mip.engines.memory_manager.engine import MemoryManager
-from mip.storage.interfaces import IdempotencyStoreABC
 
 router = APIRouter()
 
@@ -36,54 +36,8 @@ def _manager(request: Request) -> MemoryManager:
     return manager
 
 
-def _idempotency(request: Request) -> IdempotencyStoreABC:
-    store: IdempotencyStoreABC = request.app.state.idempotency
-    return store
-
-
 def _ids(request: Request) -> tuple[str, str]:
     return request.state.request_id, request.state.trace_id
-
-
-def _body_hash(*parts: str) -> str:
-    digest = hashlib.sha256()
-    for part in parts:
-        digest.update(part.encode())
-    return digest.hexdigest()
-
-
-async def _idempotent_replay(
-    request: Request, endpoint: str, request_hash: str
-) -> tuple[str | None, JSONResponse | None]:
-    """Return (key, cached response). Key is None when the header is absent."""
-    key = request.headers.get("Idempotency-Key")
-    if key is None:
-        return None, None
-    store = _idempotency(request)
-    cached = await _run(lambda: store.lookup(key, endpoint))
-    if cached is None:
-        return key, None
-    if cached.request_hash != request_hash:
-        raise errors.idempotency_key_reuse(key)
-    body: dict[str, Any] = json.loads(cached.response_json)
-    return key, JSONResponse(body, status_code=cached.status_code)
-
-
-async def _idempotent_store(
-    request: Request,
-    key: str | None,
-    endpoint: str,
-    request_hash: str,
-    status_code: int,
-    body: dict[str, Any],
-) -> None:
-    if key is None:
-        return
-    store = _idempotency(request)
-    clock = request.app.state.clock
-    await _run(
-        lambda: store.store(key, endpoint, request_hash, status_code, json.dumps(body), clock.now())
-    )
 
 
 @router.post("/memories", status_code=201)
@@ -154,6 +108,22 @@ async def list_versions(request: Request, memory_id: str) -> JSONResponse:
     manager = _manager(request)
     versions = await _run(lambda: manager.list_versions(memory_id))
     data = {"memory_id": memory_id, "versions": [v.model_dump(mode="json") for v in versions]}
+    return json_response(request, data)
+
+
+@router.get("/memories/{memory_id}/relationships")
+async def list_relationships(request: Request, memory_id: str) -> JSONResponse:
+    """Graph edges touching one memory (Phase 4 task 1, ADR-0006) — a read-only
+    convenience view over the regenerable relationship-graph projection.
+    """
+    manager = _manager(request)
+    graph: GraphEngine = request.app.state.graph_engine
+    await _run(lambda: manager.get_memory(memory_id))  # 404/410 semantics, existence check
+    edges = await _run(lambda: graph.relationships_for(memory_id))
+    data = {
+        "memory_id": memory_id,
+        "relationships": [edge.model_dump(mode="json") for edge in edges],
+    }
     return json_response(request, data)
 
 

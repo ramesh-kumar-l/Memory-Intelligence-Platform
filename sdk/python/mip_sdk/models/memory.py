@@ -226,6 +226,7 @@ class MemoryRecord(BaseModel):
     updated_at: datetime | None = None
     archived_at: datetime | None = None
     deleted_at: datetime | None = None
+    consolidation_count: int = 0
 
 
 class VersionInfo(BaseModel):

@@ -10,7 +10,9 @@ import httpx
 
 from mip_sdk._http import DEFAULT_API_VERSION, DEFAULT_TIMEOUT_SECONDS, Transport
 from mip_sdk.resources.admin import AdminResource
+from mip_sdk.resources.intelligence import ConsolidateResource, LearnResource
 from mip_sdk.resources.memories import MemoriesResource
+from mip_sdk.resources.portability import PortabilityResource
 from mip_sdk.resources.retrieval import ContextResource, ExplainResource, SearchResource
 
 
@@ -37,6 +39,9 @@ class MIPClient:
         self.explain = ExplainResource(self._transport)
         self.context = ContextResource(self._transport)
         self.admin = AdminResource(self._transport)
+        self.consolidate = ConsolidateResource(self._transport)
+        self.learn = LearnResource(self._transport)
+        self.portability = PortabilityResource(self._transport)
 
     def close(self) -> None:
         self._transport.close()

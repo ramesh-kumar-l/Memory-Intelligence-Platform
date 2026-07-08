@@ -59,4 +59,42 @@ describe("MemoriesPage", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Trust" })).not.toBeInTheDocument());
   });
+
+  it("shows outbound and inbound relationships (Phase 4 task 1)", async () => {
+    fakeClient.memories.relationships.mockResolvedValue({
+      memory_id: MEMORY_ID,
+      relationships: [
+        {
+          relationship_id: "rel-1",
+          source_memory_id: "other-id",
+          target_memory_id: MEMORY_ID,
+          type: "references",
+          direction: "outbound",
+          confidence: 1.0,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<MemoriesPage />);
+    await user.click(await screen.findByRole("button", { name: /Sample memory/ }));
+    await user.click(await screen.findByRole("tab", { name: "Relationships" }));
+
+    expect(await screen.findByText(/other-id/)).toBeInTheDocument();
+    expect(screen.getByText("No outbound relationships")).toBeInTheDocument();
+  });
+
+  it("merges the viewed memory into a primary via the prompt-driven Merge action", async () => {
+    vi.spyOn(window, "prompt").mockReturnValue("primary-id");
+    const user = userEvent.setup();
+    renderWithProviders(<MemoriesPage />);
+    await user.click(await screen.findByRole("button", { name: /Sample memory/ }));
+    await user.click(await screen.findByRole("button", { name: "Merge into…" }));
+
+    await waitFor(() =>
+      expect(fakeClient.consolidate.consolidate).toHaveBeenCalledWith({
+        primary_memory_id: "primary-id",
+        duplicate_memory_ids: [MEMORY_ID],
+      }),
+    );
+  });
 });

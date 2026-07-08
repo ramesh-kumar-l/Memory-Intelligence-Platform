@@ -32,6 +32,9 @@ class EventType(StrEnum):
     MEMORY_ARCHIVED = "MemoryArchived"
     MEMORY_RESTORED = "MemoryRestored"
     MEMORY_DELETED = "MemoryDeleted"
+    MEMORY_CONSOLIDATED = "MemoryConsolidated"
+    MEMORY_IMPORTED = "MemoryImported"
+    MEMORY_VERSION_IMPORTED = "MemoryVersionImported"
 
 
 #: Bijection: legal transition → event type (13 entries, mirrors LEGAL_TRANSITIONS).
@@ -85,6 +88,62 @@ def transition_event(
         memory_id=memory_id,
         event_type=TRANSITION_EVENTS[(from_state, to_state)],
         payload=payload,
+        actor=actor,
+        trace_id=trace_id,
+        created_at=created_at,
+    )
+
+
+def consolidation_event(
+    *,
+    primary_memory_id: str,
+    duplicate_memory_id: str,
+    actor: str,
+    trace_id: str,
+    created_at: datetime,
+) -> MemoryEvent:
+    """ADR-0006: increments the primary's consolidation_count; not a state transition."""
+    return MemoryEvent(
+        memory_id=primary_memory_id,
+        event_type=EventType.MEMORY_CONSOLIDATED,
+        payload={
+            "primary_memory_id": primary_memory_id,
+            "duplicate_memory_id": duplicate_memory_id,
+        },
+        actor=actor,
+        trace_id=trace_id,
+        created_at=created_at,
+    )
+
+
+def import_event(
+    *, memory_id: str, memory_json: dict[str, Any], actor: str, trace_id: str, created_at: datetime
+) -> MemoryEvent:
+    """ADR-0006: materializes version 1 of an imported memory as-exported."""
+    return MemoryEvent(
+        memory_id=memory_id,
+        event_type=EventType.MEMORY_IMPORTED,
+        payload={"memory": memory_json},
+        actor=actor,
+        trace_id=trace_id,
+        created_at=created_at,
+    )
+
+
+def version_import_event(
+    *,
+    memory_id: str,
+    memory_json: dict[str, Any],
+    previous_version: int,
+    actor: str,
+    trace_id: str,
+    created_at: datetime,
+) -> MemoryEvent:
+    """ADR-0006: materializes version N>1 of an imported memory as-exported."""
+    return MemoryEvent(
+        memory_id=memory_id,
+        event_type=EventType.MEMORY_VERSION_IMPORTED,
+        payload={"memory": memory_json, "previous_version": previous_version},
         actor=actor,
         trace_id=trace_id,
         created_at=created_at,

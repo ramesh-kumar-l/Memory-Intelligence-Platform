@@ -1,6 +1,30 @@
 {
   "components": {
     "schemas": {
+      "ConsolidateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "duplicate_memory_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Duplicate Memory Ids",
+            "type": "array"
+          },
+          "primary_memory_id": {
+            "minLength": 1,
+            "title": "Primary Memory Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "primary_memory_id",
+          "duplicate_memory_ids"
+        ],
+        "title": "ConsolidateRequest",
+        "type": "object"
+      },
       "Context": {
         "description": "Section 6 \u2014 retrieval context. Mutable by design (not part of version identity).",
         "properties": {
@@ -250,6 +274,24 @@
         "title": "ExplainRequest",
         "type": "object"
       },
+      "ExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "title": "ExportRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -261,6 +303,83 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportRequest": {
+        "description": "Accepts an Export bundle verbatim; only `memories` drives the pipeline \u2014\n`schema_version`/`exported_at`/`namespace`/`memory_count` are informational.",
+        "properties": {
+          "memories": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Memories",
+            "type": "array"
+          }
+        },
+        "title": "ImportRequest",
+        "type": "object"
+      },
+      "LearnRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "derived": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Semantics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "memory_id": {
+            "minLength": 1,
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "new_evidence": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "New Evidence",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "verifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifier"
+          }
+        },
+        "required": [
+          "memory_id",
+          "reason"
+        ],
+        "title": "LearnRequest",
         "type": "object"
       },
       "ObjectType": {
@@ -662,6 +781,18 @@
               }
             ]
           },
+          "source_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Count"
+          },
           "summary": {
             "anyOf": [
               {
@@ -799,6 +930,45 @@
         ]
       }
     },
+    "/v1/consolidate": {
+      "post": {
+        "operationId": "consolidate_memories_v1_consolidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsolidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consolidate Memories",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
     "/v1/context": {
       "post": {
         "operationId": "build_context_v1_context_post",
@@ -877,6 +1047,45 @@
         ]
       }
     },
+    "/v1/export": {
+      "post": {
+        "operationId": "export_memories_v1_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Memories",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health_v1_health_get",
@@ -893,6 +1102,84 @@
         "summary": "Health",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/v1/import": {
+      "post": {
+        "operationId": "import_memories_v1_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Memories",
+        "tags": [
+          "intelligence"
+        ]
+      }
+    },
+    "/v1/learn": {
+      "post": {
+        "operationId": "learn_memory_v1_learn_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Learn Memory",
+        "tags": [
+          "intelligence"
         ]
       }
     },
@@ -1205,6 +1492,47 @@
           }
         },
         "summary": "Archive Memory",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/{memory_id}/relationships": {
+      "get": {
+        "description": "Graph edges touching one memory (Phase 4 task 1, ADR-0006) \u2014 a read-only\nconvenience view over the regenerable relationship-graph projection.",
+        "operationId": "list_relationships_v1_memories__memory_id__relationships_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Relationships",
         "tags": [
           "memories"
         ]

@@ -9,6 +9,7 @@ import type {
   MemoryRecord,
   MemoryState,
   Page,
+  RelationshipsView,
   UpdateMemoryRequest,
   VersionInfo,
 } from "../types.js";
@@ -91,5 +92,15 @@ export class MemoriesResource {
 
   async restore(memoryId: string): Promise<MemoryObject> {
     return this.transport.request<MemoryObject>("POST", `/v1/memories/${memoryId}/restore`);
+  }
+
+  /** Graph edges touching this memory, outbound and inbound (Phase 4 task 1,
+   * ADR-0006) — a read-only view over the relationship-graph projection.
+   */
+  async relationships(memoryId: string): Promise<RelationshipsView> {
+    return this.transport.request<RelationshipsView>(
+      "GET",
+      `/v1/memories/${memoryId}/relationships`,
+    );
   }
 }

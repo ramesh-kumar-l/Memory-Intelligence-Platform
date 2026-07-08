@@ -23,13 +23,14 @@
 | DeleteMemory | `DELETE /v1/memories/{memory_id}` | 1 | idempotent — repeated delete returns success (FR-API-005) |
 | Archive | `POST /v1/memories/{memory_id}/archive` | 1 | idempotent |
 | Restore | `POST /v1/memories/{memory_id}/restore` | 1 | idempotent |
-| Search | `POST /v1/search` | 2 | body: `query`, `mode` (keyword/semantic/hybrid/graph/timeline/relationship/context), filters, `continuation_token` |
+| Search | `POST /v1/search` | 2/4 | body: `query`, `mode` (keyword/semantic/hybrid/graph), filters, `continuation_token`. Mode `graph` (Phase 4, ADR-0006) treats `query` as the seed `memory_id`; score = `1/hop_distance`. `timeline`/`relationship`/`context` modes from the contract are not yet implemented — unsupported modes return `MEM-1007`. |
 | BuildContext | `POST /v1/context` | 2 | returns Context Package |
 | Explain | `POST /v1/explain` | 2 | evidence, confidence, freshness, provenance, ranking explanation — available for every retrieval (FR-API-007) |
-| Consolidate | `POST /v1/consolidate` | 4 | merges duplicates via relationships; history preserved |
-| Learn | `POST /v1/learn` | 4 | updates derived knowledge; never modifies evidence |
-| Export | `POST /v1/export` | 4 | backup/migration |
-| Import | `POST /v1/import` | 4 | triggers validation pipeline |
+| — relationships | `GET /v1/memories/{memory_id}/relationships` | 4 | read-only graph-projection view: every edge touching this memory, outbound and inbound (ADR-0006, additive) |
+| Consolidate | `POST /v1/consolidate` | 4 | body: `primary_memory_id`, `duplicate_memory_ids[]`. Merges duplicates via a `duplicate_of` relationship + archive; history preserved, nothing deleted |
+| Learn | `POST /v1/learn` | 4 | body: `memory_id`, `derived` (Semantics, unioned non-destructively), `new_evidence[]`/`verifier` (trust maturation — appended, never replaces evidence), `reason`. Supports `Idempotency-Key` like Create/Update |
+| Export | `POST /v1/export` | 4 | body: `namespace?`. Backup/migration; excludes Deleted tombstones by default |
+| Import | `POST /v1/import` | 4 | body: an Export bundle. Validates every version of every memory before writing; per-memory atomic, whole-bundle partial (`imported`/`skipped`/`rejected`) |
 | — health | `GET /v1/health` | 1 | liveness + storage check |
 | — version | `GET /v1/version` | 1 | accepted/supported API versions, upgrade guidance |
 

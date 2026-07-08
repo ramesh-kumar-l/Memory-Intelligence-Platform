@@ -240,3 +240,30 @@ def versions(ctx: click.Context, memory_id: str) -> None:
             for v in result
         ]
         print_table(rows, ["version", "previous_version", "created_at"])
+
+
+@memories.command("relationships")
+@click.argument("memory_id")
+@click.pass_context
+@handle_api_errors
+def relationships(ctx: click.Context, memory_id: str) -> None:
+    """List graph edges touching a Memory Object, outbound and inbound
+    (Phase 4 task 1, ADR-0006).
+    """
+    view = ctx.obj["client"].memories.relationships(memory_id)
+    if ctx.obj["json"]:
+        print_json(view)
+    else:
+        rows = [
+            {
+                "type": edge.type,
+                "direction": edge.direction,
+                "source_memory_id": edge.source_memory_id,
+                "target_memory_id": edge.target_memory_id,
+                "confidence": edge.confidence,
+            }
+            for edge in view.relationships
+        ]
+        print_table(
+            rows, ["type", "direction", "source_memory_id", "target_memory_id", "confidence"]
+        )

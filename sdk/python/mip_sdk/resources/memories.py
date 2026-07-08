@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 from mip_sdk._http import Transport
+from mip_sdk.models.intelligence import RelationshipsView
 from mip_sdk.models.memory import MemoryObject, MemoryRecord, MemoryState, VersionInfo
 from mip_sdk.models.requests import CreateMemoryRequest, UpdateMemoryRequest
 from mip_sdk.models.retrieval import Page
@@ -39,6 +40,13 @@ class MemoriesResource:
         """
         data = self._transport.request("GET", f"/v1/memories/{memory_id}/versions")
         return tuple(VersionInfo.model_validate(v) for v in data["versions"])
+
+    def relationships(self, memory_id: str) -> RelationshipsView:
+        """Graph edges touching this memory, outbound and inbound (Phase 4
+        task 1, ADR-0006) — a read-only view over the relationship-graph projection.
+        """
+        data = self._transport.request("GET", f"/v1/memories/{memory_id}/relationships")
+        return RelationshipsView.model_validate(data)
 
     def list(
         self,

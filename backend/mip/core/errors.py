@@ -129,6 +129,24 @@ def unsupported_search_mode(mode: str, supported: tuple[str, ...]) -> Validation
     )
 
 
+def invalid_consolidation_request(reason: str) -> ValidationError:
+    return ValidationError(
+        "MEM-1008",
+        "Consolidation request is invalid",
+        details={"reason": reason},
+        http_status=422,
+    )
+
+
+def import_bundle_invalid(reason: str) -> ValidationError:
+    return ValidationError(
+        "MEM-1009",
+        "Import bundle is malformed",
+        details={"reason": reason},
+        http_status=422,
+    )
+
+
 def unresolved_relationship_target(target_memory_id: str) -> ValidationError:
     return ValidationError(
         "MEM-1006",
@@ -162,6 +180,15 @@ def memory_deleted(memory_id: str, deleted_at: str | None) -> LifecycleError:
         "Memory Object is deleted; Deleted is terminal (INV-STATE-003)",
         details={"memory_id": memory_id, "deleted_at": deleted_at},
         http_status=410,
+    )
+
+
+def consolidation_target_not_active(memory_id: str, state: str) -> LifecycleError:
+    return LifecycleError(
+        "MEM-2005",
+        "Consolidation target must be Active",
+        details={"memory_id": memory_id, "state": state},
+        http_status=409,
     )
 
 

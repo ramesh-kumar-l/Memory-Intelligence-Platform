@@ -30,9 +30,25 @@ def test_semantic_and_hybrid_modes_return_200(client: TestClient) -> None:
 
 
 def test_unsupported_mode_returns_mem_1007(client: TestClient) -> None:
-    response = client.post("/v1/search", json={"query": "anything", "mode": "graph"})
+    response = client.post("/v1/search", json={"query": "anything", "mode": "timeline"})
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "MEM-1007"
+
+
+def test_graph_mode_finds_related_memory(client: TestClient) -> None:
+    target = _create(client, title="graph target")
+    source = client.post(
+        "/v1/memories",
+        json=create_payload(
+            title="graph source",
+            relationships=[{"target_memory_id": target, "type": "references"}],
+        ),
+    ).json()["data"]["memory_id"]
+    response = client.post("/v1/search", json={"query": source, "mode": "graph"})
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["items"][0]["memory_id"] == target
+    assert body["items"][0]["score"] == 1.0
 
 
 def test_missing_query_and_no_continuation_token_is_rejected(client: TestClient) -> None:

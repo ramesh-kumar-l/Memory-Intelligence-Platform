@@ -89,6 +89,7 @@ export function sampleMemoryRecord(overrides: Partial<MemoryRecord> = {}): Memor
     updated_at: null,
     archived_at: null,
     deleted_at: null,
+    consolidation_count: 0,
   };
   return { ...base, ...overrides };
 }
@@ -114,6 +115,7 @@ export function createFakeClient() {
       archive: vi.fn().mockResolvedValue(sampleMemoryObject({ lifecycle: { ...sampleMemoryObject().lifecycle, state: "Archived" } })),
       restore: vi.fn().mockResolvedValue(sampleMemoryObject()),
       delete: vi.fn().mockResolvedValue({ memory_id: MEMORY_ID, deleted: true }),
+      relationships: vi.fn().mockResolvedValue({ memory_id: MEMORY_ID, relationships: [] }),
     },
     search: {
       search: vi.fn().mockResolvedValue({
@@ -141,6 +143,28 @@ export function createFakeClient() {
     },
     admin: {
       health: vi.fn().mockResolvedValue({ status: "ok", storage: true }),
+    },
+    consolidate: {
+      consolidate: vi.fn().mockResolvedValue(
+        sampleMemoryObject({ lifecycle: { ...sampleMemoryObject().lifecycle, consolidation_count: 1 } }),
+      ),
+    },
+    learn: {
+      learn: vi.fn().mockResolvedValue(
+        sampleMemoryObject({
+          semantics: { ...sampleMemoryObject().semantics, concepts: ["durability"] },
+        }),
+      ),
+    },
+    portability: {
+      export: vi.fn().mockResolvedValue({
+        schema_version: "1.0",
+        exported_at: "2026-07-08T00:00:00Z",
+        namespace: "demo",
+        memory_count: 1,
+        memories: [],
+      }),
+      import_: vi.fn().mockResolvedValue({ imported: [], skipped: [], rejected: [] }),
     },
   };
 }

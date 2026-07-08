@@ -6,7 +6,9 @@ import click
 from mip_sdk.client import MIPClient
 
 from mip_cli.commands.admin import admin
+from mip_cli.commands.intelligence import consolidate, learn
 from mip_cli.commands.memories import memories
+from mip_cli.commands.portability import export, import_
 from mip_cli.commands.retrieval import context, explain, search
 
 DEFAULT_API_URL = "http://localhost:8000"
@@ -34,3 +36,7 @@ cli.add_command(admin)
 cli.add_command(search)
 cli.add_command(explain)
 cli.add_command(context)
+cli.add_command(consolidate)
+cli.add_command(learn)
+cli.add_command(export)
+cli.add_command(import_)
