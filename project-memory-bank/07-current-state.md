@@ -2,44 +2,45 @@
 
 **Read at every session boot.** Keep under ~80 lines. Reflects reality — update before ending any session. (This file is the project's "implementation status" doc.)
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-08
 
 ---
 
-## Status: Phase 1 — Core Memory Engine COMPLETE (all gates green)
+## Status: Phase 2 — Retrieval & Explainability COMPLETE (all gates green)
 
 | Area | State |
 | --- | --- |
-| Specifications | ✅ Complete (`30-memory/01–06`); schema-state-enum drift resolved by ADR-0003 (state machine's 11 states authoritative) |
+| Specifications | ✅ Complete (`30-memory/01–06`); lifecycle enum drift resolved by ADR-0003 |
 | Engineering OS | ✅ `CLAUDE.md` v2.0 + Constitution; operational docs 03/05/08/09/18/20/21 |
-| Decisions | ✅ ADR-0001 Python/FastAPI/SQLite · ADR-0002 React/TS/Vite · ADR-0003 lifecycle enum + tombstone deletion |
-| Backend Phase 1 | ✅ `backend/` — core domain (11-section frozen MemoryObject, MEM-* error registry), 11-state machine (13 legal transitions), SQLite event store + projections, Memory Manager + Validation engines, REST API `/v1` |
-| Tests / gates | ✅ 208 tests green; ruff + mypy --strict clean; coverage 98% (core 99.7%, engines 96.4%) |
-| Phase 2 (search/explain) | ❌ Not started (awaiting approval) |
+| Decisions | ✅ ADR-0001 Python/FastAPI/SQLite · ADR-0002 React/TS/Vite · ADR-0003 lifecycle/deletion · ADR-0004 retrieval/explainability architecture |
+| Backend Phase 1 | ✅ Core domain, 11-state machine, event store, Memory Manager, REST API `/v1` CRUD+lifecycle |
+| Backend Phase 2 | ✅ FTS5 keyword index, sqlite-vec semantic index, hybrid ranking, `/v1/search`, `/v1/explain`, `/v1/context`, real enrichment, basic Trust scoring |
+| Tests / gates | ✅ ~276 tests green; ruff + mypy --strict clean; coverage 98.07% |
 | Frontend / SDKs / CLI | ❌ Not started (Phase 3) |
 | Graph / learn / export | ❌ Not started (Phase 4) |
 
 ## What works right now
 
-`uvicorn mip.api.main:app` serves: CreateMemory (full pipeline Created→…→Active, one event per hop), Get (+`?version=N`, `/versions`), Update (If-Match, version N+1), Delete (idempotent, tombstone), Archive/Restore (idempotent), list (continuation tokens), `/v1/health`, `/v1/version`, `/v1/admin/rebuild-projections` (replay ⇒ `identical: true`). Idempotency-Key replay, MIP-API-Version negotiation, structured MEM-1xxx…6xxx envelopes.
+Everything from Phase 1, plus: `POST /v1/search` (`mode`: keyword/semantic/hybrid, namespace filter, opaque self-contained continuation tokens), `POST /v1/explain` (confidence, dynamic freshness, provenance, evidence, and — with a query — a ranking breakdown), `POST /v1/context` (Context Package blending search relevance with each memory's own importance score). Every Create/Update now runs real enrichment (derived keywords merged into `semantics.keywords`) and basic Trust confidence derivation (blend of client input + verification_status/source_count heuristic) *after* the Phase 1 activation gate — enrichment augments valid content, it never rescues invalid input. `POST /v1/admin/rebuild-projections` now also re-derives both indexes from current Memory Objects and reports `indexed_memories`.
 
 ## Key implementation facts (for future sessions)
 
-* Event → projection writes go through `mip/events/projector.py::apply_event` **only** — live path and rebuild share it, so replay is identical by construction.
-* All SQL lives under `mip/storage/sqlite/`; engines see only ABCs in `storage/interfaces.py`.
-* Deterministic tests: injected `Clock`; per-memory `LockRegistry` enforces INV-CONCUR-004.
-* Only `Active → Deleted` is legal; deleting an Archived memory requires restore first (ADR-0003). GET on deleted → 410 `MEM-2003`.
-* Quality gate (run from `backend/`, venv `.venv`): `ruff check . ; ruff format --check . ; mypy ; pytest`.
+* New packages: `mip/providers/` (`EmbeddingProviderABC` + default `LocalHashingEmbeddingProvider`, deterministic offline feature-hashing — not deep semantic understanding), `mip/engines/{semantic,trust,retrieval,context}/`.
+* Indexes (`mip/storage/sqlite/search_index.py` FTS5, `vector_index.py` sqlite-vec) are write-time side effects of Create/Update, **not** event-sourced; `rebuild_indexes()` re-derives them from live Memory Objects — deterministic because embedding is a pure function of text (ADR-0004).
+* Search/Context only surface `Active` memories (Archived = "removed from active retrieval"); filtering happens at query time against the `memories` projection, so index rows are never deleted on archive/delete.
+* Continuation tokens for Search/Context are self-contained (`srch:` + base64 JSON of query/mode/namespace/offset) — no server-side session state.
+* `sqlite-vec` and FTS5 both confirmed working on this Python 3.14/Windows environment; `sqlite-vec` needs `[[tool.mypy.overrides]] module="sqlite_vec"` (no stubs).
+* Quality gate (from `backend/`, venv `.venv`): `ruff check . ; ruff format --check . ; mypy ; pytest`.
 
 ## Last completed milestone
 
-Phase 1 — Core Memory Engine, 2026-07-07 (all acceptance criteria in `09-phase-plan.md` verified).
+Phase 2 — Retrieval & Explainability, 2026-07-08 (all `09-phase-plan.md` acceptance criteria verified).
 
 ## Next milestone
 
-Phase 2 — Retrieval & Explainability. **Blocked on: user approval to begin.**
+Phase 3 — Developer Platform (console, SDKs, CLI). **Blocked on: user approval to begin.**
 
 ## Known issues / open questions
 
-* `30-memory/02-memory-schema.md` still lists the old 7-state enum; needs the additive spec edit recorded in ADR-0003 (user-owned normative doc).
-* Nothing committed to git yet this phase (commit on request).
+* `30-memory/02-memory-schema.md` still lists the old 7-state enum; needs the additive edit recorded in ADR-0003 (user-owned normative doc).
+* Nothing committed to git yet; commit on request.

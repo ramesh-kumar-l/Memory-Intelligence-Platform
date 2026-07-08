@@ -15,6 +15,9 @@ from mip.core.specs import CreateMemorySpec, UpdateMemorySpec
 from mip.core.states import CREATION_PIPELINE, MemoryState, assert_legal
 from mip.engines.memory_manager.locks import LockRegistry
 from mip.engines.memory_manager.versioning import build_next_version
+from mip.engines.retrieval.engine import RetrievalEngine
+from mip.engines.semantic.engine import SemanticEngine
+from mip.engines.trust.scoring import TrustEngine
 from mip.engines.validation.engine import ValidationEngine
 from mip.events.projector import apply_event, rebuild
 from mip.events.types import EventType, MemoryEvent, transition_event
@@ -38,6 +41,9 @@ class MemoryManager:
         transactions: TransactionManagerABC,
         locks: LockRegistry,
         validation: ValidationEngine,
+        semantic: SemanticEngine,
+        trust: TrustEngine,
+        indexer: RetrievalEngine,
         clock: Clock,
         lock_timeout: float = 10.0,
     ) -> None:
@@ -46,6 +52,9 @@ class MemoryManager:
         self._tx = transactions
         self._locks = locks
         self._validation = validation
+        self._semantic = semantic
+        self._trust = trust
+        self._indexer = indexer
         self._clock = clock
         self._lock_timeout = lock_timeout
 
@@ -61,6 +70,10 @@ class MemoryManager:
         memory = self._validation.build_memory(spec, request_id=request_id, trace_id=trace_id)
         self._validation.check_activation(memory)
         self._check_relationship_targets(memory)
+        # Enrichment runs only after activation preconditions pass: it augments
+        # already-valid content for searchability, never rescues invalid input
+        # (INV-SEM-001 must still be satisfied by the caller, per Phase 1 contract).
+        memory = self._enrich(memory)
         actor = memory.audit.created_by
         memory_id = memory.memory_id
         with self._locks.acquire(memory_id, self._lock_timeout), self._tx.transaction():
@@ -76,6 +89,7 @@ class MemoryManager:
             apply_event(self._repo, created)
             for from_state, to_state in CREATION_PIPELINE:
                 self._emit(memory_id, from_state, to_state, actor=actor, trace_id=trace_id)
+            self._indexer.index_memory(memory)
         logger.info("memory created", extra={"memory_id": memory_id, "request_id": request_id})
         return self._require_object(memory_id)
 
@@ -107,6 +121,7 @@ class MemoryManager:
             )
             self._validation.check_activation(new_version)
             self._check_relationship_targets(new_version)
+            new_version = self._enrich(new_version)  # additive only, see create_memory
             self._emit(
                 memory_id,
                 MemoryState.UPDATING,
@@ -118,6 +133,7 @@ class MemoryManager:
                     "previous_version": current.version,
                 },
             )
+            self._indexer.index_memory(new_version)
         logger.info("memory updated", extra={"memory_id": memory_id, "request_id": request_id})
         return self._require_object(memory_id)
 
@@ -196,13 +212,27 @@ class MemoryManager:
         return self._repo.list_versions(memory_id)
 
     def rebuild_projections(self) -> dict[str, Any]:
-        """Admin: replay the full event log; report must come back identical."""
+        """Admin: replay the full event log, then re-derive search/vector
+        indexes from the resulting Memory Objects (ADR-0004); report must
+        come back identical for the event-sourced projections.
+        """
         with self._tx.transaction():
             report = rebuild(self._events, self._repo)
+            report["indexed_memories"] = self._indexer.rebuild_indexes()
         logger.info("projections rebuilt", extra={"report": report})
         return report
 
     # ------------------------------------------------------------------ internals
+
+    def _enrich(self, memory: MemoryObject) -> MemoryObject:
+        """Real semantic enrichment + basic trust scoring (Phase 2 tasks 6-7),
+        applied before persistence so the stored version already reflects it.
+        """
+        enriched = self._semantic.enrich(memory)
+        confidence = self._trust.derive_confidence(enriched.trust)
+        return enriched.model_copy(
+            update={"trust": enriched.trust.model_copy(update={"confidence": confidence})}
+        )
 
     def _emit(
         self,

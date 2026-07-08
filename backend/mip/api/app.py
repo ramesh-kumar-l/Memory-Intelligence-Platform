@@ -14,39 +14,62 @@ from fastapi.exceptions import RequestValidationError
 import mip
 from mip.api.middleware.request_context import RequestContextMiddleware
 from mip.api.responses import error_response
-from mip.api.v1 import admin, memories
+from mip.api.v1 import admin, context, explain, memories, search
 from mip.config import MIPSettings
 from mip.core import errors
 from mip.core.clock import SystemClock
+from mip.engines.context.engine import ContextEngine
 from mip.engines.memory_manager.engine import MemoryManager
 from mip.engines.memory_manager.locks import LockRegistry
+from mip.engines.retrieval.engine import RetrievalEngine
+from mip.engines.semantic.engine import SemanticEngine
+from mip.engines.trust.scoring import TrustEngine
 from mip.engines.validation.engine import ValidationEngine
+from mip.providers.local_embedding import LocalHashingEmbeddingProvider
 from mip.storage.sqlite.database import Database
 from mip.storage.sqlite.event_store import SqliteEventStore
 from mip.storage.sqlite.idempotency_store import SqliteIdempotencyStore
 from mip.storage.sqlite.memory_repository import SqliteMemoryRepository
+from mip.storage.sqlite.search_index import Fts5SearchIndex
+from mip.storage.sqlite.vector_index import SqliteVecVectorIndex
 
 logger = logging.getLogger(__name__)
 
 
 def create_app(settings: MIPSettings | None = None) -> FastAPI:
     active_settings = settings or MIPSettings()
-    database = Database(active_settings.db_path)
+    database = Database(
+        active_settings.db_path, embedding_dimensions=active_settings.embedding_dimensions
+    )
     clock = SystemClock()
+    repository = SqliteMemoryRepository(database)
     validation = ValidationEngine(
         schema_version=active_settings.schema_version,
         encoding_version=active_settings.encoding_version,
         clock=clock,
     )
+    embeddings = LocalHashingEmbeddingProvider(dimensions=active_settings.embedding_dimensions)
+    retrieval = RetrievalEngine(
+        search_index=Fts5SearchIndex(database),
+        vector_index=SqliteVecVectorIndex(database),
+        embeddings=embeddings,
+        repository=repository,
+        hybrid_keyword_weight=active_settings.hybrid_keyword_weight,
+    )
+    trust = TrustEngine(freshness_half_life_days=active_settings.trust_freshness_half_life_days)
     manager = MemoryManager(
         event_store=SqliteEventStore(database),
-        repository=SqliteMemoryRepository(database),
+        repository=repository,
         transactions=database,
         locks=LockRegistry(),
         validation=validation,
+        semantic=SemanticEngine(),
+        trust=trust,
+        indexer=retrieval,
         clock=clock,
         lock_timeout=active_settings.lock_timeout_seconds,
     )
+    context_engine = ContextEngine(retrieval=retrieval, repository=repository)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -59,6 +82,9 @@ def create_app(settings: MIPSettings | None = None) -> FastAPI:
     app.state.idempotency = SqliteIdempotencyStore(database)
     app.state.transactions = database
     app.state.clock = clock
+    app.state.retrieval_engine = retrieval
+    app.state.context_engine = context_engine
+    app.state.trust_engine = trust
 
     app.add_middleware(RequestContextMiddleware, supported_versions=active_settings.api_versions)
 
@@ -92,4 +118,7 @@ def create_app(settings: MIPSettings | None = None) -> FastAPI:
 
     app.include_router(memories.router, prefix="/v1", tags=["memories"])
     app.include_router(admin.router, prefix="/v1", tags=["admin"])
+    app.include_router(search.router, prefix="/v1", tags=["retrieval"])
+    app.include_router(explain.router, prefix="/v1", tags=["retrieval"])
+    app.include_router(context.router, prefix="/v1", tags=["retrieval"])
     return app

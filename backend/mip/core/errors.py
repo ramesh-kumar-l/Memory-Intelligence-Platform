@@ -120,6 +120,15 @@ def unsupported_api_version(requested: str, supported: tuple[str, ...]) -> Valid
     )
 
 
+def unsupported_search_mode(mode: str, supported: tuple[str, ...]) -> ValidationError:
+    return ValidationError(
+        "MEM-1007",
+        "Requested search mode is not supported",
+        details={"requested": mode, "supported": list(supported)},
+        http_status=400,
+    )
+
+
 def unresolved_relationship_target(target_memory_id: str) -> ValidationError:
     return ValidationError(
         "MEM-1006",

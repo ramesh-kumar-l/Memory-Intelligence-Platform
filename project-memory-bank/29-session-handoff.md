@@ -2,42 +2,42 @@
 
 **Read at every session boot.** Overwritten at the end of every session; keep under ~80 lines.
 
-**Session date:** 2026-07-07 (session 2)
+**Session date:** 2026-07-08 (session 3)
 
 ---
 
 ## What this session did
 
-Implemented **Phase 1 — Core Memory Engine** end to end in `backend/` (user approved the phase; per-task stop-gates waived by explicit instruction to complete the phase):
+Implemented **Phase 2 — Retrieval & Explainability** end to end in `backend/` (user approved the phase and asked for the full scope in one pass, as with Phase 1):
 
-1. Scaffold: `pyproject.toml` (ruff, mypy --strict, pytest+coverage), venv, README, .gitignore.
-2. Core domain (`mip/core/`): frozen pydantic MemoryObject with all 11 schema sections; MEM-* error registry (`errors.py`, append-only); `CreateMemorySpec`/`UpdateMemorySpec`; INV-* activation checks; injectable Clock.
-3. State machine (`core/states.py`): 11 states, exactly 13 legal transitions, `assert_legal` → MEM-2001.
-4. Event sourcing (`mip/events/`): 14 event types (transition↔event bijection); `projector.apply_event` is the single write path for live ops **and** rebuild.
-5. Storage (`mip/storage/`): ABCs + SQLite adapters (WAL, explicit transactions, nested-scope join); no SQL outside `storage/sqlite/`.
-6. Engines: ValidationEngine; MemoryManager (create pipeline, If-Match update→v N+1, idempotent archive/restore/delete, per-memory LockRegistry, rebuild).
-7. API (`mip/api/`): all Phase 1 endpoints, success/error envelopes, Idempotency-Key replay, MIP-API-Version negotiation, request/trace ids, lifespan DB close.
-8. Tests (208): invariant suites (ID/STATE/VER/CONCUR + activation branches), full 13-legal + 108-illegal matrix, replay identity, API contract, idempotency.
+1. ADR-0004: embedding provider abstraction, FTS5/sqlite-vec index design, hybrid ranking formula, trust scoring formulas, self-contained search continuation tokens — verified `sqlite-vec` and FTS5 both work on this Python 3.14/Windows setup before committing to the design.
+2. `mip/providers/`: `EmbeddingProviderABC` + default `LocalHashingEmbeddingProvider` (deterministic offline feature-hashing, no ML deps/network).
+3. Storage: `SearchIndexABC`/`VectorIndexABC` + `Fts5SearchIndex`/`SqliteVecVectorIndex` adapters; `Database` now loads the `sqlite-vec` extension and owns the FTS5/vec0 schema.
+4. Engines: `engines/semantic` (keyword/entity enrichment), `engines/trust` (confidence blend + dynamic freshness decay), `engines/retrieval` (indexing + keyword/semantic/hybrid search + ranking + explain support), `engines/context` (BuildContext).
+5. `MemoryManager` extended (not rewritten): enrichment + trust scoring run **after** the Phase 1 activation gate (additive only — never rescues invalid input); indexing happens at create/update; `rebuild_projections` now also re-derives both indexes and reports `indexed_memories`.
+6. API: `POST /v1/search`, `POST /v1/explain`, `POST /v1/context` + DTOs; self-contained `srch:` continuation tokens (`api/v1/pagination.py`, `retrieval_common.py`).
+7. Tests (~276 total, all green): providers, engines (semantic/trust/retrieval/context), storage adapters (FTS5/vector), API contract tests for all three new endpoints, MemoryManager integration tests for enrichment/indexing/rebuild.
 
 ## Decisions made
 
-* **ADR-0003** (accepted): state machine's 11 states authoritative; tombstone deletion; only `Active→Deleted` legal (archived must be restored first); prose "ValidationFailed allows Delete" not implemented — table wins.
-* Python 3.14 in use locally (satisfies `>=3.12`).
-* Unexpected-500s map to `MEM-6002` (Storage category) — revisit if a Runtime category is ever added to the contract.
+* **ADR-0004** (accepted) — see above; key point: indexes are write-time side effects re-derivable from Memory Objects, not event-sourced.
+* Enrichment order fixed mid-session: originally ran enrichment *before* `check_activation`, which silently let content with empty `semantics` pass (auto-derived keywords satisfied INV-SEM-001). Reordered so `check_activation` always runs on caller-supplied content first — preserves the Phase 1 contract exactly; enrichment is purely additive afterward.
+* Keywords accumulate across versions by design (`UpdateMemorySpec`: "absent fields keep prior values" — Phase 1, unchanged); a title-only update does not purge previously-derived keywords. Documented via test naming, not treated as a bug.
 
 ## Next steps
 
-1. User reviews Phase 1 (run gates: `backend/` → `ruff check . ; mypy ; pytest`).
-2. Optionally commit (`git add backend project-memory-bank CLAUDE.md ...` — nothing committed yet).
-3. On approval: **Phase 2 task 1** (FTS5 keyword search + pagination). Load `03`, `05`, `30-memory/05-memory-api-contract.md`, `20`.
+1. User reviews Phase 2 (gates: `backend/` → `ruff check . ; ruff format --check . ; mypy ; pytest`).
+2. Optionally commit (nothing committed yet).
+3. On approval: **Phase 3 — Developer Platform** (console, Python/TS SDKs, CLI). Load `18-ui-design-system.md`, `05-api-design.md`, `21-coding-standards.md`.
 
 ## Open questions (need user input)
 
-1. Approve Phase 2 start?
-2. Who edits `30-memory/02-memory-schema.md` state enum (additive, per ADR-0003)? Recommend user applies it since 30-memory specs are normative user-owned docs.
+1. Approve Phase 3 start?
+2. Who edits `30-memory/02-memory-schema.md` state enum (still open from Phase 1/ADR-0003)?
 
 ## Watch out for
 
-* Keep every source file < 300 lines (user rule, session 2). Largest is `engines/memory_manager/engine.py` (~250) — split before extending.
-* `uvicorn mip.api.main:app` (module-level app lives in `main.py`, not `app.py`, to avoid import-time DB creation).
-* Windows: background shells may lack `python` on PATH — use `py` or the venv's `python.exe`.
+* Keep every source file < 300 lines. Largest is `engines/memory_manager/engine.py` (~286) — split before extending further.
+* `LocalHashingEmbeddingProvider` is a lexical stand-in, not real semantic understanding; swapping in a real model provider needs no ADR (ADR-0004), only if the *default* changes.
+* `sqlite-vec` needs `[[tool.mypy.overrides]] module="sqlite_vec"` in `pyproject.toml` (no type stubs).
+* Test `db`/`embeddings` fixtures share `TEST_EMBEDDING_DIMENSIONS = 32` in `conftest.py` — the vec0 table dimension is fixed at `Database` construction, so any fixture using a different provider dimension will break.

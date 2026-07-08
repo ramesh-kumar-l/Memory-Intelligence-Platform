@@ -54,6 +54,24 @@ class IdempotencyRecord(BaseModel):
     response_json: str
 
 
+class SearchHit(BaseModel):
+    """One keyword-index match; higher score is better (ADR-0004)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    memory_id: str
+    score: float
+
+
+class VectorHit(BaseModel):
+    """One vector-index match; distance is raw L2 distance, lower is closer."""
+
+    model_config = ConfigDict(frozen=True)
+
+    memory_id: str
+    distance: float
+
+
 class TransactionManagerABC(ABC):
     """Atomic write scope shared by event appends and projection updates (INV-CONCUR-003)."""
 
@@ -144,3 +162,43 @@ class IdempotencyStoreABC(ABC):
         response_json: str,
         created_at: datetime,
     ) -> None: ...
+
+
+class SearchIndexABC(ABC):
+    """Keyword full-text index — a regenerable projection, never the source of truth."""
+
+    @abstractmethod
+    def index(
+        self,
+        *,
+        memory_id: str,
+        namespace: str,
+        title: str,
+        summary: str,
+        description: str,
+        keywords: str,
+    ) -> None:
+        """Upsert the searchable text for one memory."""
+
+    @abstractmethod
+    def search(self, query: str, *, namespace: str | None, limit: int) -> list[SearchHit]:
+        """Ranked keyword matches (best first); at most `limit` results."""
+
+    @abstractmethod
+    def clear_all(self) -> None:
+        """Wipe the index (rebuild only)."""
+
+
+class VectorIndexABC(ABC):
+    """Semantic vector index — a regenerable projection, never the source of truth."""
+
+    @abstractmethod
+    def upsert(self, *, memory_id: str, embedding: tuple[float, ...]) -> None: ...
+
+    @abstractmethod
+    def search(self, embedding: tuple[float, ...], *, limit: int) -> list[VectorHit]:
+        """Nearest neighbors by L2 distance (closest first); at most `limit` results."""
+
+    @abstractmethod
+    def clear_all(self) -> None:
+        """Wipe the index (rebuild only)."""

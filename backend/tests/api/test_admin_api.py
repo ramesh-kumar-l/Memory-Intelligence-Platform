@@ -19,6 +19,7 @@ def test_rebuild_projections_reports_identical(client: TestClient) -> None:
     assert report["identical"] is True
     assert report["memories"] == 1
     assert report["events_replayed"] > 0
+    assert report["indexed_memories"] == 1
 
     # State fully intact after rebuild.
     memory = client.get(f"/v1/memories/{memory_id}").json()["data"]

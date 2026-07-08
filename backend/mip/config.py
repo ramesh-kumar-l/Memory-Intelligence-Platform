@@ -19,3 +19,12 @@ class MIPSettings(BaseSettings):
     lock_timeout_seconds: float = 10.0
     list_default_limit: int = 50
     list_max_limit: int = 200
+
+    # Phase 2 — Retrieval & Explainability
+    embedding_dimensions: int = 256
+    hybrid_keyword_weight: float = 0.5
+    search_default_limit: int = 20
+    search_max_limit: int = 100
+    context_default_limit: int = 10
+    context_max_limit: int = 50
+    trust_freshness_half_life_days: float = 30.0

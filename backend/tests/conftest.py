@@ -14,13 +14,21 @@ from fastapi.testclient import TestClient
 
 from mip.api.app import create_app
 from mip.config import MIPSettings
+from mip.engines.context.engine import ContextEngine
 from mip.engines.memory_manager.engine import MemoryManager
 from mip.engines.memory_manager.locks import LockRegistry
+from mip.engines.retrieval.engine import RetrievalEngine
+from mip.engines.semantic.engine import SemanticEngine
+from mip.engines.trust.scoring import TrustEngine
 from mip.engines.validation.engine import ValidationEngine
+from mip.providers.embeddings import EmbeddingProviderABC
+from mip.providers.local_embedding import LocalHashingEmbeddingProvider
 from mip.storage.sqlite.database import Database
 from mip.storage.sqlite.event_store import SqliteEventStore
 from mip.storage.sqlite.idempotency_store import SqliteIdempotencyStore
 from mip.storage.sqlite.memory_repository import SqliteMemoryRepository
+from mip.storage.sqlite.search_index import Fts5SearchIndex
+from mip.storage.sqlite.vector_index import SqliteVecVectorIndex
 
 
 class TickingClock:
@@ -39,9 +47,13 @@ def clock() -> TickingClock:
     return TickingClock()
 
 
+#: Kept small across fixtures for fast tests; must match the `embeddings` fixture.
+TEST_EMBEDDING_DIMENSIONS = 32
+
+
 @pytest.fixture
 def db(tmp_path: Path) -> Iterator[Database]:
-    database = Database(tmp_path / "test.db")
+    database = Database(tmp_path / "test.db", embedding_dimensions=TEST_EMBEDDING_DIMENSIONS)
     yield database
     database.close()
 
@@ -72,12 +84,61 @@ def validation(clock: TickingClock) -> ValidationEngine:
 
 
 @pytest.fixture
+def embeddings() -> EmbeddingProviderABC:
+    return LocalHashingEmbeddingProvider(dimensions=TEST_EMBEDDING_DIMENSIONS)
+
+
+@pytest.fixture
+def search_index(db: Database) -> Fts5SearchIndex:
+    return Fts5SearchIndex(db)
+
+
+@pytest.fixture
+def vector_index(db: Database) -> SqliteVecVectorIndex:
+    return SqliteVecVectorIndex(db)
+
+
+@pytest.fixture
+def semantic() -> SemanticEngine:
+    return SemanticEngine()
+
+
+@pytest.fixture
+def trust() -> TrustEngine:
+    return TrustEngine(freshness_half_life_days=30.0)
+
+
+@pytest.fixture
+def retrieval(
+    search_index: Fts5SearchIndex,
+    vector_index: SqliteVecVectorIndex,
+    embeddings: EmbeddingProviderABC,
+    repo: SqliteMemoryRepository,
+) -> RetrievalEngine:
+    return RetrievalEngine(
+        search_index=search_index,
+        vector_index=vector_index,
+        embeddings=embeddings,
+        repository=repo,
+        hybrid_keyword_weight=0.5,
+    )
+
+
+@pytest.fixture
+def context_engine(retrieval: RetrievalEngine, repo: SqliteMemoryRepository) -> ContextEngine:
+    return ContextEngine(retrieval=retrieval, repository=repo)
+
+
+@pytest.fixture
 def manager(
     db: Database,
     event_store: SqliteEventStore,
     repo: SqliteMemoryRepository,
     locks: LockRegistry,
     validation: ValidationEngine,
+    semantic: SemanticEngine,
+    trust: TrustEngine,
+    retrieval: RetrievalEngine,
     clock: TickingClock,
 ) -> MemoryManager:
     return MemoryManager(
@@ -86,6 +147,9 @@ def manager(
         transactions=db,
         locks=locks,
         validation=validation,
+        semantic=semantic,
+        trust=trust,
+        indexer=retrieval,
         clock=clock,
         lock_timeout=0.2,  # keep INV-CONCUR-004 tests fast
     )

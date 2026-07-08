@@ -13,6 +13,8 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
+import sqlite_vec
+
 from mip.core import errors
 from mip.storage.interfaces import TransactionManagerABC
 
@@ -62,13 +64,31 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
     created_at TEXT NOT NULL,
     PRIMARY KEY (idempotency_key, endpoint)
 );
+
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    memory_id UNINDEXED,
+    namespace UNINDEXED,
+    title,
+    summary,
+    description,
+    keywords
+);
+
+CREATE TABLE IF NOT EXISTS vector_rowids (
+    memory_id TEXT PRIMARY KEY,
+    rowid INTEGER NOT NULL UNIQUE
+);
 """
+
+_VECTOR_TABLE_DDL = (
+    "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vectors USING vec0(embedding float[{dim}])"
+)
 
 
 class Database(TransactionManagerABC):
     """Owns the sqlite3 connection; adapters execute through it."""
 
-    def __init__(self, path: Path | str) -> None:
+    def __init__(self, path: Path | str, *, embedding_dimensions: int = 256) -> None:
         location = str(path)
         if location != ":memory:":
             Path(location).parent.mkdir(parents=True, exist_ok=True)
@@ -78,7 +98,11 @@ class Database(TransactionManagerABC):
         self._depth = 0
         with self._lock:
             self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.enable_load_extension(True)
+            sqlite_vec.load(self._conn)
+            self._conn.enable_load_extension(False)
             self._conn.executescript(_SCHEMA)
+            self._conn.execute(_VECTOR_TABLE_DDL.format(dim=embedding_dimensions))
 
     def execute(self, sql: str, params: tuple[object, ...] = ()) -> sqlite3.Cursor:
         with self._lock:

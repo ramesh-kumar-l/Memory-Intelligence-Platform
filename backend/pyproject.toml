@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
     "uvicorn>=0.30",
+    "sqlite-vec>=0.1.9",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 strict = true
 warn_unreachable = true
 files = ["mip", "tests"]
+
+[[tool.mypy.overrides]]
+# sqlite-vec ships no type stubs/py.typed marker; this is the standard mypy
+# escape hatch for a third-party dependency, not project code (21-coding-standards.md).
+module = "sqlite_vec"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
