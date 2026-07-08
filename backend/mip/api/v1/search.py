@@ -11,6 +11,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import resolve_scoped_namespace
 from mip.api.responses import json_response
 from mip.api.v1.pagination import encode_search_token
 from mip.api.v1.retrieval_common import resolve_cursor
@@ -38,6 +39,7 @@ async def search_memories(request: Request, payload: SearchRequest) -> JSONRespo
     limit = min(payload.limit or settings.search_default_limit, settings.search_max_limit)
     if limit < 1:
         raise errors.invalid_request([{"field": "limit", "message": "must be >= 1"}])
+    namespace = resolve_scoped_namespace(request, namespace)
     results, has_more = await _run(
         lambda: retrieval.search(query, mode=mode, namespace=namespace, limit=limit, offset=offset)
     )

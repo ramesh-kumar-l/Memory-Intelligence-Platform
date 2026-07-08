@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import ensure_namespace_allowed
 from mip.api.responses import json_response
 from mip.api.v1.retrieval_schemas import ExplainRequest
 from mip.engines.memory_manager.engine import MemoryManager
@@ -33,6 +34,7 @@ async def explain_memory(request: Request, payload: ExplainRequest) -> JSONRespo
 
     def _build() -> dict[str, Any]:
         memory = manager.get_memory(payload.memory_id)
+        ensure_namespace_allowed(request, memory.identity.namespace)
         now = request.app.state.clock.now()
         return build_explanation(
             memory,

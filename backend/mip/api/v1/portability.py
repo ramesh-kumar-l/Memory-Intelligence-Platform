@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import get_principal, resolve_scoped_namespace
 from mip.api.responses import json_response
 from mip.api.v1.intelligence_schemas import ExportRequest, ImportRequest
 from mip.engines.portability.export_engine import ExportEngine
@@ -27,7 +28,8 @@ async def _run[T](fn: Callable[[], T]) -> T:
 @router.post("/export")
 async def export_memories(request: Request, payload: ExportRequest) -> JSONResponse:
     engine: ExportEngine = request.app.state.export_engine
-    bundle = await _run(lambda: engine.export(namespace=payload.namespace))
+    namespace = resolve_scoped_namespace(request, payload.namespace)
+    bundle = await _run(lambda: engine.export(namespace=namespace))
     return json_response(request, bundle)
 
 
@@ -35,6 +37,12 @@ async def export_memories(request: Request, payload: ExportRequest) -> JSONRespo
 async def import_memories(request: Request, payload: ImportRequest) -> JSONResponse:
     engine: ImportEngine = request.app.state.import_engine
     request_id, trace_id = request.state.request_id, request.state.trace_id
+    principal = get_principal(request)
+    allowed_namespaces = None if "*" in principal.namespaces else principal.namespaces
     bundle: dict[str, Any] = {"memories": payload.memories}
-    report = await _run(lambda: engine.import_bundle(bundle, actor=request_id, trace_id=trace_id))
+    report = await _run(
+        lambda: engine.import_bundle(
+            bundle, actor=request_id, trace_id=trace_id, allowed_namespaces=allowed_namespaces
+        )
+    )
     return json_response(request, report)

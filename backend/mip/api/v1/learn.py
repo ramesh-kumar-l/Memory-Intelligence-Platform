@@ -11,10 +11,12 @@ from collections.abc import Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import ensure_namespace_allowed
 from mip.api.responses import envelope
 from mip.api.v1.idempotency import body_hash, idempotent_replay, idempotent_store
 from mip.api.v1.intelligence_schemas import LearnRequest
 from mip.engines.learning.engine import LearnEngine
+from mip.engines.memory_manager.engine import MemoryManager
 
 router = APIRouter()
 
@@ -31,6 +33,10 @@ async def learn_memory(request: Request, payload: LearnRequest) -> JSONResponse:
     key, cached = await idempotent_replay(request, endpoint, request_hash)
     if cached is not None:
         return cached
+    manager: MemoryManager = request.app.state.memory_manager
+    namespace = await _run(lambda: manager.peek_namespace(payload.memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     engine: LearnEngine = request.app.state.learn_engine
     memory = await _run(
         lambda: engine.learn(

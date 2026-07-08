@@ -1,0 +1,37 @@
+# Local/default profile: auth and rate limiting disabled, matching MIP's
+# zero-config offline-first default. For a shared/production deployment,
+# override the MIP_AUTH_ENABLED / MIP_API_KEYS / MIP_RATE_LIMIT_* /
+# MIP_CORS_ALLOWED_ORIGINS environment variables — see
+# project-memory-bank/22-deployment.md.
+services:
+  mip-backend:
+    build:
+      context: ./backend
+    image: mip-backend:local
+    ports:
+      - "8000:8000"
+    volumes:
+      - mip-data:/data
+    environment:
+      MIP_DB_PATH: /data/mip.db
+      MIP_AUTH_ENABLED: "false"
+      MIP_API_KEYS: "{}"
+      MIP_RATE_LIMIT_ENABLED: "false"
+      MIP_RATE_LIMIT_REQUESTS_PER_MINUTE: "120"
+      MIP_CORS_ALLOWED_ORIGINS: "[]"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/v1/health').status == 200 else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mip-data:

@@ -38,7 +38,8 @@ backend/
 ├── mip/
 │   ├── api/            # FastAPI routers, request/response DTOs, error envelope
 │   │   ├── v1/         # /v1 routes: memories, search, context, explain, admin
-│   │   └── middleware/ # request_id, tracing, version negotiation, idempotency
+│   │   └── middleware/ # request_id, tracing, version negotiation, idempotency,
+│   │                   # auth (API-key + namespace isolation), rate limiting (ADR-0007, opt-in)
 │   ├── core/           # PURE domain logic — no I/O, fully unit-testable
 │   │   ├── model.py    # MemoryObject (pydantic, 11 schema sections)
 │   │   ├── states.py   # lifecycle states + legal-transition table
@@ -99,7 +100,7 @@ storage/sqlite/         SqliteEventStore · SqliteMemoryRepository · Fts5Search
 * **Concurrency:** one lifecycle transition at a time per memory (per-memory advisory lock); concurrent updates create versions, never overwrite (INV-CONCUR-001).
 * **Observability:** every request carries `request_id`/`trace_id`; every transition and API call emits structured logs; sensitive payloads are never logged.
 * **Failure isolation:** enrichment/index/graph failures are explicit failure states with retry policies; they never corrupt the event log.
-* **Security boundary:** governance/privacy/policy belong to the Semantic Control Plane (out of MIP core scope); MIP enforces ownership and namespace isolation only.
+* **Security boundary:** governance/privacy/policy belong to the Semantic Control Plane (out of MIP core scope); MIP enforces ownership and namespace isolation only — via an opt-in, static API-key mechanism (`MIP_AUTH_ENABLED`, ADR-0007), not an identity/accounts system. See `22-deployment.md` for hardening and packaging.
 
 ## Frontend & Clients
 

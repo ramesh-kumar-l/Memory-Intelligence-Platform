@@ -10,8 +10,26 @@
 
 * Base path `/v1`. JSON request/response bodies, `snake_case` fields, UTC ISO-8601 timestamps, UUIDs as strings.
 * Every response includes `request_id`, `schema_version`, `processing_time_ms`.
-* Headers: `MIP-API-Version` (version negotiation; unknown versions → structured negotiation error), `Idempotency-Key` (required semantics for Create/Update/Learn retries), `X-Request-Id` / `X-Trace-Id` (generated if absent).
+* Headers: `MIP-API-Version` (version negotiation; unknown versions → structured negotiation error), `Idempotency-Key` (required semantics for Create/Update/Learn retries), `X-Request-Id` / `X-Trace-Id` (generated if absent), `Authorization: Bearer <api-key>` or `X-API-Key` (only enforced when `MIP_AUTH_ENABLED=true`; ADR-0007 — see `22-deployment.md`).
 * OpenAPI is generated from code (FastAPI) and published; it is documentation, not the contract.
+
+## Auth & Namespace Isolation (opt-in, ADR-0007)
+
+Disabled by default (zero-config, offline-first). When `MIP_AUTH_ENABLED=true`, every `/v1` route
+except `GET /v1/health` and `GET /v1/version` requires a recognized API key (`MIP_API_KEYS`, a
+JSON map of key → allowed namespaces; `["*"]` = unrestricted). This is authentication for the
+ownership/namespace isolation MIP already claims (`03-system-architecture.md`) — not an identity
+system; full auth/RBAC remains out of scope per `08-roadmap.md`. Enforcement:
+* Writes that declare a namespace (`CreateMemory`) validate it directly.
+* Reads with an optional namespace filter (`ListMemories`, `Search`, `BuildContext`, `Export`)
+  validate it if given, auto-scope to a key's single allowed namespace if omitted, or reject as
+  ambiguous (`MEM-8004`) if the key has several and none was named.
+* Per-memory operations (Get/Update/Delete/Archive/Restore/Consolidate/Learn/Explain/
+  relationships) check the target's namespace against the key before delegating to the engine.
+* Import rejects (not fails the whole bundle) any entry whose namespace isn't permitted.
+
+Rate limiting (`MIP_RATE_LIMIT_ENABLED`, also opt-in) is a single-process, per-key/IP sliding
+60-second window; exceeding it returns `MEM-8005` + `Retry-After`.
 
 ## Endpoints ↔ Canonical Operations
 
@@ -54,7 +72,7 @@ All failures return:
 }
 ```
 
-Code namespaces (from the contract): `MEM-1000` Validation · `MEM-2000` Lifecycle · `MEM-3000` Identity · `MEM-4000` Concurrency · `MEM-5000` Trust · `MEM-6000` Storage · `MEM-7000` Sync · `MEM-8000` Security. HTTP status is a coarse mapping (400/404/409/422/500…); clients must key on `code`, never on message text. The code registry lives in `backend/mip/core/errors.py` and is append-only.
+Code namespaces (from the contract): `MEM-1000` Validation · `MEM-2000` Lifecycle · `MEM-3000` Identity · `MEM-4000` Concurrency · `MEM-5000` Trust · `MEM-6000` Storage · `MEM-7000` Sync · `MEM-8000` Security (`MEM-8001` missing API key · `MEM-8002` invalid API key · `MEM-8003` namespace forbidden · `MEM-8004` namespace required · `MEM-8005` rate limit exceeded — ADR-0007). HTTP status is a coarse mapping (400/404/409/422/500…); clients must key on `code`, never on message text. The code registry lives in `backend/mip/core/errors/` (split into `base.py`/`factories.py` for the 300-line file budget; both re-exported from `errors/__init__.py`) and is append-only.
 
 ## Pagination & Partial Results
 

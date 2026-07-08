@@ -1,12 +1,13 @@
 import { useState } from "react";
 
-import { getApiBaseUrl, setApiBaseUrl } from "../api/client";
+import { getApiBaseUrl, getApiKey, setApiBaseUrl, setApiKey } from "../api/client";
 import { ErrorState } from "../components/ErrorState";
 import { useHealth } from "../hooks/useAdmin";
 import "./SettingsPage.css";
 
 export function SettingsPage() {
   const [url, setUrl] = useState(getApiBaseUrl());
+  const [apiKey, setApiKeyInput] = useState(getApiKey());
   const [checked, setChecked] = useState(false);
   const healthQuery = useHealth(checked);
 
@@ -18,6 +19,7 @@ export function SettingsPage() {
         onSubmit={(event) => {
           event.preventDefault();
           setApiBaseUrl(url);
+          setApiKey(apiKey);
           setChecked(true);
           void healthQuery.refetch();
         }}
@@ -28,6 +30,16 @@ export function SettingsPage() {
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           placeholder="http://localhost:8000"
+        />
+        <label htmlFor="settings-api-key">
+          API key <span className="settings-page__hint">(only if the server requires one)</span>
+        </label>
+        <input
+          id="settings-api-key"
+          type="password"
+          value={apiKey}
+          onChange={(event) => setApiKeyInput(event.target.value)}
+          placeholder="Leave blank if auth is disabled"
         />
         <button type="submit">Save &amp; test connection</button>
       </form>

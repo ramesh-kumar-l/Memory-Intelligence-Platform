@@ -28,3 +28,9 @@
 .settings-page__status {
   margin-top: var(--space-4);
 }
+
+.settings-page__hint {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: var(--text-sm, 0.85em);
+}

@@ -29,10 +29,15 @@ class MIPClient:
         *,
         api_version: str = DEFAULT_API_VERSION,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        api_key: str | None = None,
         http_client: httpx.Client | None = None,
     ) -> None:
         self._transport = Transport(
-            base_url, api_version=api_version, timeout=timeout, client=http_client
+            base_url,
+            api_version=api_version,
+            timeout=timeout,
+            api_key=api_key,
+            client=http_client,
         )
         self.memories = MemoriesResource(self._transport)
         self.search = SearchResource(self._transport)

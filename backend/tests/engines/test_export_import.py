@@ -116,3 +116,31 @@ def test_import_bundle_missing_memories_field_is_rejected(import_engine: ImportE
     with pytest.raises(errors.ValidationError) as exc_info:
         import_engine.import_bundle({}, actor="importer", trace_id="t")
     assert exc_info.value.code == "MEM-1009"
+
+
+def test_import_rejects_entries_outside_allowed_namespaces(
+    manager: MemoryManager,
+    export_engine: ExportEngine,
+    import_engine: ImportEngine,
+    repo: SqliteMemoryRepository,
+) -> None:
+    """ADR-0007: a namespace outside the caller's allowed set is rejected like
+    any other validation failure, not a whole-bundle failure."""
+    allowed_id = _create(manager, title="in scope", namespace="allowed-ns")
+    other_id = _create(manager, title="out of scope", namespace="other-ns")
+    bundle = export_engine.export(namespace=None)
+    assert {m["memory_id"] for m in bundle["memories"]} >= {allowed_id, other_id}
+
+    repo.clear_all()  # simulate importing into a fresh store
+
+    report = import_engine.import_bundle(
+        {"memories": bundle["memories"]},
+        actor="importer",
+        trace_id="t",
+        allowed_namespaces=("allowed-ns",),
+    )
+    assert allowed_id in report["imported"]
+    rejected_ids = {entry["memory_id"] for entry in report["rejected"]}
+    assert other_id in rejected_ids
+    other_entry = next(entry for entry in report["rejected"] if entry["memory_id"] == other_id)
+    assert other_entry["violations"][0]["code"] == "MEM-8003"

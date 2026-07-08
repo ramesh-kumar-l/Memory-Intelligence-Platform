@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 import mip
+from mip.api.middleware.auth import require_principal
 from mip.api.responses import json_response
 from mip.engines.memory_manager.engine import MemoryManager
 from mip.storage.interfaces import TransactionManagerABC
@@ -34,7 +35,7 @@ async def version(request: Request) -> JSONResponse:
     return json_response(request, data)
 
 
-@router.post("/admin/rebuild-projections")
+@router.post("/admin/rebuild-projections", dependencies=[Depends(require_principal)])
 async def rebuild_projections(request: Request) -> JSONResponse:
     """Rebuild all projections from the event log; `identical: true` proves
     replay reproduces the exact pre-rebuild state (INV-CONS-004).

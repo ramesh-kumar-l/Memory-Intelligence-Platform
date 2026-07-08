@@ -22,11 +22,17 @@ DEFAULT_API_URL = "http://localhost:8000"
     show_default=True,
     help="Base URL of the MIP REST API.",
 )
+@click.option(
+    "--api-key",
+    envvar="MIP_API_KEY",
+    default=None,
+    help="API key (Authorization: Bearer) — only needed if the server has MIP_AUTH_ENABLED=true.",
+)
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.pass_context
-def cli(ctx: click.Context, api_url: str, as_json: bool) -> None:
+def cli(ctx: click.Context, api_url: str, api_key: str | None, as_json: bool) -> None:
     """Memory Intelligence Platform command-line interface."""
-    client = MIPClient(api_url)
+    client = MIPClient(api_url, api_key=api_key)
     ctx.call_on_close(client.close)
     ctx.obj = {"client": client, "json": as_json}
 

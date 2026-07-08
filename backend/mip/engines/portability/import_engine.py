@@ -34,7 +34,18 @@ class ImportEngine:
         self._tx = transactions
         self._clock = clock
 
-    def import_bundle(self, bundle: dict[str, Any], *, actor: str, trace_id: str) -> dict[str, Any]:
+    def import_bundle(
+        self,
+        bundle: dict[str, Any],
+        *,
+        actor: str,
+        trace_id: str,
+        allowed_namespaces: tuple[str, ...] | None = None,
+    ) -> dict[str, Any]:
+        """`allowed_namespaces=None` means unrestricted (default — every
+        pre-existing caller is unaffected). Otherwise a memory whose namespace
+        isn't permitted is rejected like any other validation failure
+        (ADR-0007) rather than failing the whole bundle."""
         entries = bundle.get("memories")
         if not isinstance(entries, list):
             raise errors.import_bundle_invalid("'memories' must be a list")
@@ -56,6 +67,16 @@ class ImportEngine:
                 rejected.append({"memory_id": memory_id, "violations": [{"message": str(exc)}]})
                 continue
             violations = _validate_versions(memory_id, versions)
+            if allowed_namespaces is not None and versions[0].identity.namespace not in (
+                allowed_namespaces
+            ):
+                violations.append(
+                    {
+                        "code": "MEM-8003",
+                        "field": "namespace",
+                        "message": "namespace is not permitted for this API key",
+                    }
+                )
             if violations:
                 rejected.append({"memory_id": memory_id, "violations": violations})
                 continue

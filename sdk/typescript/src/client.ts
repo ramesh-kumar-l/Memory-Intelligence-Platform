@@ -12,6 +12,7 @@ import { ContextResource, ExplainResource, SearchResource } from "./resources/re
 export interface MIPClientOptions {
   apiVersion?: string | undefined;
   fetchImpl?: FetchLike | undefined;
+  apiKey?: string | undefined;
 }
 
 /**
@@ -35,6 +36,7 @@ export class MIPClient {
     const transport = new Transport(baseUrl, {
       apiVersion: options.apiVersion ?? DEFAULT_API_VERSION,
       fetchImpl: options.fetchImpl,
+      apiKey: options.apiKey,
     });
     this.memories = new MemoriesResource(transport);
     this.search = new SearchResource(transport);

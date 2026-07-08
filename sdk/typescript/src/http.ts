@@ -21,17 +21,20 @@ export interface RequestOptions {
 export interface TransportOptions {
   apiVersion?: string | undefined;
   fetchImpl?: FetchLike | undefined;
+  apiKey?: string | undefined;
 }
 
 export class Transport {
   private readonly baseUrl: string;
   private readonly apiVersion: string;
   private readonly fetchImpl: FetchLike;
+  private readonly apiKey: string | undefined;
 
   constructor(baseUrl: string, options: TransportOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.apiVersion = options.apiVersion ?? DEFAULT_API_VERSION;
     this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+    this.apiKey = options.apiKey;
   }
 
   async request<T = unknown>(
@@ -42,6 +45,9 @@ export class Transport {
     const url = this.buildUrl(path, params);
     const requestHeaders: Record<string, string> = {
       "MIP-API-Version": this.apiVersion,
+      // Sent only when the caller opts in; the server ignores it entirely
+      // unless MIP_AUTH_ENABLED=true (ADR-0007).
+      ...(this.apiKey !== undefined ? { Authorization: `Bearer ${this.apiKey}` } : {}),
       ...headers,
     };
     const init: RequestInit = { method, headers: requestHeaders };

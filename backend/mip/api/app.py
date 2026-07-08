@@ -8,10 +8,13 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 import mip
+from mip.api.middleware.auth import require_principal
+from mip.api.middleware.rate_limit import RateLimitMiddleware
 from mip.api.middleware.request_context import RequestContextMiddleware
 from mip.api.responses import error_response
 from mip.api.v1 import admin, consolidate, context, explain, learn, memories, portability, search
@@ -114,7 +117,20 @@ def create_app(settings: MIPSettings | None = None) -> FastAPI:
     app.state.export_engine = export_engine
     app.state.import_engine = import_engine
 
+    app.add_middleware(
+        RateLimitMiddleware,
+        enabled=active_settings.rate_limit_enabled,
+        requests_per_minute=active_settings.rate_limit_requests_per_minute,
+    )
     app.add_middleware(RequestContextMiddleware, supported_versions=active_settings.api_versions)
+    if active_settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(active_settings.cors_allowed_origins),
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     async def handle_mip_error(request: Request, exc: Exception) -> Response:
         if not isinstance(exc, errors.MIPError):  # pragma: no cover - handler is type-bound
@@ -144,12 +160,19 @@ def create_app(settings: MIPSettings | None = None) -> FastAPI:
     app.add_exception_handler(RequestValidationError, handle_request_validation)
     app.add_exception_handler(Exception, handle_unexpected)
 
-    app.include_router(memories.router, prefix="/v1", tags=["memories"])
+    auth_dep = [Depends(require_principal)]
+    # /v1/health and /v1/version (in admin.router) stay public; rebuild-projections
+    # is gated individually since it shares a router with them (ADR-0007).
+    app.include_router(memories.router, prefix="/v1", tags=["memories"], dependencies=auth_dep)
     app.include_router(admin.router, prefix="/v1", tags=["admin"])
-    app.include_router(search.router, prefix="/v1", tags=["retrieval"])
-    app.include_router(explain.router, prefix="/v1", tags=["retrieval"])
-    app.include_router(context.router, prefix="/v1", tags=["retrieval"])
-    app.include_router(consolidate.router, prefix="/v1", tags=["intelligence"])
-    app.include_router(learn.router, prefix="/v1", tags=["intelligence"])
-    app.include_router(portability.router, prefix="/v1", tags=["intelligence"])
+    app.include_router(search.router, prefix="/v1", tags=["retrieval"], dependencies=auth_dep)
+    app.include_router(explain.router, prefix="/v1", tags=["retrieval"], dependencies=auth_dep)
+    app.include_router(context.router, prefix="/v1", tags=["retrieval"], dependencies=auth_dep)
+    app.include_router(
+        consolidate.router, prefix="/v1", tags=["intelligence"], dependencies=auth_dep
+    )
+    app.include_router(learn.router, prefix="/v1", tags=["intelligence"], dependencies=auth_dep)
+    app.include_router(
+        portability.router, prefix="/v1", tags=["intelligence"], dependencies=auth_dep
+    )
     return app

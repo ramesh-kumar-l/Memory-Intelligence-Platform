@@ -1,88 +1,18 @@
-"""Structured error hierarchy bound to the append-only MEM-* code registry.
-
-The registry (05-api-design.md) is append-only: codes are never renumbered or
-removed. The API layer is the only place these become HTTP responses.
-"""
+"""Registry factories for the append-only MEM-* code registry
+(05-api-design.md). Codes are never renumbered or removed."""
 
 from __future__ import annotations
 
-from enum import StrEnum
-from typing import Any, ClassVar
+from typing import Any
 
-DOCUMENTATION_URL_BASE = (
-    "https://github.com/mip-platform/memory-intelligence-platform/blob/main/docs/errors.md#"
+from mip.core.errors.base import (
+    ConcurrencyError,
+    IdentityError,
+    LifecycleError,
+    SecurityError,
+    StorageError,
+    ValidationError,
 )
-
-
-class ErrorCategory(StrEnum):
-    VALIDATION = "Validation"
-    LIFECYCLE = "Lifecycle"
-    IDENTITY = "Identity"
-    CONCURRENCY = "Concurrency"
-    TRUST = "Trust"
-    STORAGE = "Storage"
-    SYNC = "Sync"
-    SECURITY = "Security"
-
-
-class MIPError(Exception):
-    """Base of all platform errors; carries the structured error envelope (INV-API-003)."""
-
-    category: ClassVar[ErrorCategory]
-
-    def __init__(
-        self,
-        code: str,
-        message: str,
-        *,
-        details: dict[str, Any] | None = None,
-        recoverable: bool = False,
-        http_status: int = 500,
-    ) -> None:
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.details: dict[str, Any] = details or {}
-        self.recoverable = recoverable
-        self.http_status = http_status
-
-    def to_error_dict(self) -> dict[str, Any]:
-        """Body of the `error` field in the API error envelope."""
-        return {
-            "code": self.code,
-            "category": self.category.value,
-            "message": self.message,
-            "details": self.details,
-            "recoverable": self.recoverable,
-            "documentation_url": f"{DOCUMENTATION_URL_BASE}{self.code}",
-        }
-
-
-class ValidationError(MIPError):
-    category = ErrorCategory.VALIDATION
-
-
-class LifecycleError(MIPError):
-    category = ErrorCategory.LIFECYCLE
-
-
-class IdentityError(MIPError):
-    category = ErrorCategory.IDENTITY
-
-
-class ConcurrencyError(MIPError):
-    category = ErrorCategory.CONCURRENCY
-
-
-class StorageError(MIPError):
-    category = ErrorCategory.STORAGE
-
-
-class SecurityError(MIPError):
-    category = ErrorCategory.SECURITY
-
-
-# --- Registry factories (append-only; keep codes stable forever) -----------------------------
 
 
 def validation_failed(violations: list[dict[str, Any]]) -> ValidationError:
@@ -272,4 +202,46 @@ def internal_failure() -> StorageError:
         "MEM-6002",
         "Unexpected internal failure",
         http_status=500,
+    )
+
+
+def missing_api_key() -> SecurityError:
+    return SecurityError(
+        "MEM-8001",
+        "Request is missing required API-key credentials",
+        http_status=401,
+    )
+
+
+def invalid_api_key() -> SecurityError:
+    return SecurityError(
+        "MEM-8002",
+        "API key is not recognized",
+        http_status=401,
+    )
+
+
+def namespace_forbidden(namespace: str) -> SecurityError:
+    return SecurityError(
+        "MEM-8003",
+        "API key is not authorized for this namespace",
+        details={"namespace": namespace},
+        http_status=403,
+    )
+
+
+def namespace_required() -> SecurityError:
+    return SecurityError(
+        "MEM-8004",
+        "API key is scoped to multiple namespaces; a namespace must be specified",
+        http_status=400,
+    )
+
+
+def rate_limit_exceeded() -> SecurityError:
+    return SecurityError(
+        "MEM-8005",
+        "Rate limit exceeded",
+        recoverable=True,
+        http_status=429,
     )

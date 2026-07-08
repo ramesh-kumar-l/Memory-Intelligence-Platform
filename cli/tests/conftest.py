@@ -27,5 +27,5 @@ def cli_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[CliR
     app = create_app(settings)
     with TestClient(app) as test_client:
         sdk_client = MIPClient("http://testserver", http_client=test_client)
-        monkeypatch.setattr("mip_cli.main.MIPClient", lambda base_url: sdk_client)
+        monkeypatch.setattr("mip_cli.main.MIPClient", lambda base_url, api_key=None: sdk_client)
         yield CliRunner()

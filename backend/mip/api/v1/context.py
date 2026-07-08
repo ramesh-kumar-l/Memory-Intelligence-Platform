@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import resolve_scoped_namespace
 from mip.api.responses import json_response
 from mip.api.v1.pagination import encode_search_token
 from mip.api.v1.retrieval_common import resolve_cursor
@@ -36,6 +37,7 @@ async def build_context(request: Request, payload: ContextRequest) -> JSONRespon
     limit = min(payload.limit or settings.context_default_limit, settings.context_max_limit)
     if limit < 1:
         raise errors.invalid_request([{"field": "limit", "message": "must be >= 1"}])
+    namespace = resolve_scoped_namespace(request, namespace)
     package: dict[str, Any] = await _run(
         lambda: context_engine.build_context(
             query, namespace=namespace, mode=mode, limit=limit, offset=offset

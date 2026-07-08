@@ -23,14 +23,16 @@ class Transport:
         *,
         api_version: str = DEFAULT_API_VERSION,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        api_key: str | None = None,
         client: httpx.Client | None = None,
     ) -> None:
         self._owns_client = client is None
-        self._client = client or httpx.Client(
-            base_url=base_url.rstrip("/"),
-            timeout=timeout,
-            headers={"MIP-API-Version": api_version},
-        )
+        self._client = client or httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout)
+        self._client.headers["MIP-API-Version"] = api_version
+        if api_key is not None:
+            # Sent only when the caller opts in; the server ignores it entirely
+            # unless MIP_AUTH_ENABLED=true (ADR-0007).
+            self._client.headers["Authorization"] = f"Bearer {api_key}"
 
     def close(self) -> None:
         if self._owns_client:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,3 +29,11 @@ class MIPSettings(BaseSettings):
     context_default_limit: int = 10
     context_max_limit: int = 50
     trust_freshness_half_life_days: float = 30.0
+
+    # Production hardening (ADR-0007) — all opt-in; defaults preserve the
+    # zero-config, offline-first, single-user posture (Constitution Law 7).
+    auth_enabled: bool = False
+    api_keys: dict[str, tuple[str, ...]] = Field(default_factory=dict)
+    rate_limit_enabled: bool = False
+    rate_limit_requests_per_minute: int = 120
+    cors_allowed_origins: tuple[str, ...] = ()

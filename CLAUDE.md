@@ -43,6 +43,7 @@ Then load additional docs **only per the routing table below**, based on the tas
 | Frontend / UI / console | `18-ui-design-system.md` |
 | Tests | `20-testing-strategy.md` |
 | Writing code (any language) | `21-coding-standards.md` |
+| Auth, rate limiting, deployment/packaging, hardening | `22-deployment.md` (+ `adr/ADR-0007-production-hardening.md` for rationale) |
 | Planning a phase, milestones | `09-phase-plan.md` (+ `08-roadmap.md` for the big picture) |
 | Product scope, vision, requirements | `Vision.md`, `00-PRD-Overview.md`, `01-product-requirements.md` — **only** for product-scope work |
 | Past decisions, stack rationale | `adr/` |

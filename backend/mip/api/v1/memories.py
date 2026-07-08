@@ -13,6 +13,7 @@ from collections.abc import Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from mip.api.middleware.auth import ensure_namespace_allowed, resolve_scoped_namespace
 from mip.api.responses import envelope, json_response
 from mip.api.v1.idempotency import body_hash as _body_hash
 from mip.api.v1.idempotency import idempotent_replay as _idempotent_replay
@@ -42,6 +43,7 @@ def _ids(request: Request) -> tuple[str, str]:
 
 @router.post("/memories", status_code=201)
 async def create_memory(request: Request, payload: CreateMemoryRequest) -> JSONResponse:
+    ensure_namespace_allowed(request, payload.namespace)
     request_id, trace_id = _ids(request)
     endpoint = "POST /v1/memories"
     request_hash = _body_hash(payload.model_dump_json())
@@ -78,6 +80,7 @@ async def list_memories(
     page_size = min(limit or settings.list_default_limit, settings.list_max_limit)
     if page_size < 1:
         raise errors.invalid_request([{"field": "limit", "message": "must be >= 1"}])
+    namespace = resolve_scoped_namespace(request, namespace)
     after = decode_token(continuation_token) if continuation_token else None
     manager = _manager(request)
     records, has_more = await _run(
@@ -100,12 +103,16 @@ async def get_memory(request: Request, memory_id: str, version: int | None = Non
         raise errors.invalid_request([{"field": "version", "message": "must be >= 1"}])
     manager = _manager(request)
     memory = await _run(lambda: manager.get_memory(memory_id, version))
+    ensure_namespace_allowed(request, memory.identity.namespace)
     return json_response(request, memory.to_public_dict())
 
 
 @router.get("/memories/{memory_id}/versions")
 async def list_versions(request: Request, memory_id: str) -> JSONResponse:
     manager = _manager(request)
+    namespace = await _run(lambda: manager.peek_namespace(memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     versions = await _run(lambda: manager.list_versions(memory_id))
     data = {"memory_id": memory_id, "versions": [v.model_dump(mode="json") for v in versions]}
     return json_response(request, data)
@@ -118,7 +125,8 @@ async def list_relationships(request: Request, memory_id: str) -> JSONResponse:
     """
     manager = _manager(request)
     graph: GraphEngine = request.app.state.graph_engine
-    await _run(lambda: manager.get_memory(memory_id))  # 404/410 semantics, existence check
+    memory = await _run(lambda: manager.get_memory(memory_id))  # 404/410 semantics
+    ensure_namespace_allowed(request, memory.identity.namespace)
     edges = await _run(lambda: graph.relationships_for(memory_id))
     data = {
         "memory_id": memory_id,
@@ -147,6 +155,9 @@ async def update_memory(
     if cached is not None:
         return cached
     manager = _manager(request)
+    namespace = await _run(lambda: manager.peek_namespace(memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     spec = payload.to_spec()
     memory = await _run(
         lambda: manager.update_memory(
@@ -166,6 +177,9 @@ async def update_memory(
 async def delete_memory(request: Request, memory_id: str) -> JSONResponse:
     request_id, trace_id = _ids(request)
     manager = _manager(request)
+    namespace = await _run(lambda: manager.peek_namespace(memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     result = await _run(
         lambda: manager.delete_memory(memory_id, actor=request_id, trace_id=trace_id)
     )
@@ -176,6 +190,9 @@ async def delete_memory(request: Request, memory_id: str) -> JSONResponse:
 async def archive_memory(request: Request, memory_id: str) -> JSONResponse:
     request_id, trace_id = _ids(request)
     manager = _manager(request)
+    namespace = await _run(lambda: manager.peek_namespace(memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     memory = await _run(
         lambda: manager.archive_memory(memory_id, actor=request_id, trace_id=trace_id)
     )
@@ -186,6 +203,9 @@ async def archive_memory(request: Request, memory_id: str) -> JSONResponse:
 async def restore_memory(request: Request, memory_id: str) -> JSONResponse:
     request_id, trace_id = _ids(request)
     manager = _manager(request)
+    namespace = await _run(lambda: manager.peek_namespace(memory_id))
+    if namespace is not None:
+        ensure_namespace_allowed(request, namespace)
     memory = await _run(
         lambda: manager.restore_memory(memory_id, actor=request_id, trace_id=trace_id)
     )

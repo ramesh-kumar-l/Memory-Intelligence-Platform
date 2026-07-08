@@ -211,6 +211,14 @@ class MemoryManager:
         self._require_live_record(memory_id)
         return self._repo.list_versions(memory_id)
 
+    def peek_namespace(self, memory_id: str) -> str | None:
+        """Namespace of a memory_id if any record exists at all, bypassing the
+        Active/Deleted lifecycle gate (ADR-0007). Used for auth/ownership
+        checks that must run before idempotent operations like DeleteMemory,
+        which must still succeed on an already-Deleted tombstone."""
+        record = self._repo.get_record(memory_id)
+        return record.namespace if record is not None else None
+
     def rebuild_projections(self) -> dict[str, Any]:
         """Admin: replay the full event log, then re-derive search/vector
         indexes from the resulting Memory Objects (ADR-0004); report must

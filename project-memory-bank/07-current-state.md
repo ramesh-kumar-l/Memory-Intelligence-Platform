@@ -6,65 +6,64 @@
 
 ---
 
-## Status: Phase 4 — Intelligence COMPLETE (all gates green)
+## Status: Phases 1-4 COMPLETE + Production Hardening COMPLETE (all gates green)
 
 | Area | State |
 | --- | --- |
 | Specifications | ✅ Complete (`30-memory/01–06`); lifecycle enum drift resolved by ADR-0003 |
-| Engineering OS | ✅ `CLAUDE.md` v2.0 + Constitution; operational docs 03/05/08/09/18/20/21 |
-| Decisions | ✅ ADR-0001..0005 (stack, lifecycle, retrieval, dev platform) · ADR-0006 intelligence architecture |
-| Phase 1 — Core | ✅ Domain model, 11-state machine, event store, Memory Manager, REST CRUD+lifecycle |
-| Phase 2 — Retrieval | ✅ FTS5/sqlite-vec, hybrid ranking, `/v1/search`, `/v1/explain`, `/v1/context`, Trust scoring |
-| Phase 3 — Dev Platform | ✅ Python/TS SDKs, CLI, React console |
-| Phase 4 — Graph | ✅ Relationship-graph projection (`SqliteGraphIndex`), graph search mode, `/v1/memories/{id}/relationships` |
-| Phase 4 — Consolidate | ✅ `ConsolidateEngine` — merges duplicates via `duplicate_of` relationship + archive; history preserved |
-| Phase 4 — Learn | ✅ `LearnEngine` — non-destructive semantic union + trust maturation, one version bump |
-| Phase 4 — Trust maturation | ✅ Evidence append-only chains, source counting, verification-status thresholds |
-| Phase 4 — Export/Import | ✅ `/v1/export`, `/v1/import`; validated per-memory, round-trip verified losslessly |
-| Tests / gates | ✅ Backend 97.5% (321 tests) · sdk/python 98.9% (38) · cli 93.4% (21) · sdk/typescript (45 incl. live) · frontend (51) — all ruff/mypy/eslint/tsc clean |
+| Engineering OS | ✅ `CLAUDE.md` v2.0 + Constitution; operational docs 03/05/08/09/18/20/21/22 |
+| Decisions | ✅ ADR-0001..0006 (stack, lifecycle, retrieval, dev platform, intelligence) · ADR-0007 production hardening |
+| Phase 1-4 | ✅ Core, Retrieval/Explainability, Dev Platform, Intelligence — see ADRs 0003-0006 |
+| Hardening — Auth | ✅ Opt-in API-key gate + namespace/ownership isolation (`MIP_AUTH_ENABLED`, `MIP_API_KEYS`), all `/v1` except `/health`/`/version` |
+| Hardening — Rate limiting | ✅ Opt-in in-memory sliding-window limiter (`MIP_RATE_LIMIT_ENABLED`), `MEM-8005` + `Retry-After` |
+| Hardening — Deployment | ✅ `backend/Dockerfile` + root `docker-compose.yml`, single-worker (matches SQLite single-writer model) |
+| Tests / gates | ✅ Backend 97.6% (342 tests) · sdk/python 99.3% (42) · cli 93.4% (24) · sdk/typescript (42 incl. live) · frontend (52) — all ruff/mypy/eslint/tsc clean |
 
 ## What works right now
 
-Everything from Phases 1-3, plus: a relationship graph fully regenerable from Memory
-Objects (`GraphEngine.rebuild()`, exercised by `POST /v1/admin/rebuild-projections`); a
-`graph` search mode (`POST /v1/search {mode:"graph", query:"<seed memory_id>"}`, score =
-`1/hop_distance`); `POST /v1/consolidate` (merge duplicates, nothing deleted); `POST
-/v1/learn` (derived semantics + optional evidence maturation, supports
-`Idempotency-Key`); `POST /v1/export` + `POST /v1/import` (backup/migration, validated
-before write, per-memory atomic). All four operations are exposed through the Python SDK,
-TypeScript SDK, CLI (`mip consolidate|learn|export|import`, `mip memories
-relationships`), and the console (new **Intelligence** page; Memory detail's
-Relationships tab now shows inbound + outbound edges; Search page has a Graph mode).
+Everything from Phases 1-4, plus: opt-in API-key authentication enforcing ownership/namespace
+isolation on every `/v1` route except health/version (`Authorization: Bearer <key>` or
+`X-API-Key`); opt-in per-key/IP rate limiting; Docker packaging. All disabled by default — a
+fresh `MIPSettings()` behaves exactly as before (zero-config, offline-first). All four client
+surfaces (Python SDK, TS SDK, CLI `--api-key`/`MIP_API_KEY`, console Settings page) can supply an
+API key when a deployment enables auth.
 
 ## Key implementation facts (for future sessions)
 
-* Graph is a SQLite adjacency table (`memory_relationship_edges`), populated by
-  `RetrievalEngine.index_memory()` (single choke point, same as search/vector indexes) —
-  `memory_manager/engine.py` was **not** modified for any Phase 4 feature.
-* Consolidate/Import add new event types (`MemoryConsolidated`, `MemoryImported`,
-  `MemoryVersionImported`) but reuse existing repository methods (`create`,
-  `publish_version`, `set_state`) — no new SQL beyond the graph table + `consolidation_count` column.
-* `consolidation_count` and `source_count` (`UpdateMemorySpec`/`UpdateMemoryRequest`) were
-  the two small additive gaps found and fixed mid-phase (see ADR-0006 + session handoff).
-* Export/Import fidelity target is "what `GetMemory`/`ListVersions` already return," not
-  the raw event log — verified end-to-end (engine tests, API tests, live SDK/CLI/curl runs).
-* New error codes: `MEM-1008` (invalid consolidation request), `MEM-1009` (malformed
-  import bundle), `MEM-2005` (consolidation target not Active) — registry stays append-only.
+* Auth is a FastAPI dependency (`api/middleware/auth.py::require_principal`), not middleware —
+  applied per-router in `app.py`; `/v1/health`/`/v1/version` stay public, `rebuild-projections` is
+  gated individually since it shares admin's router with them.
+* `MemoryManager.peek_namespace()` (new, additive) does a raw record lookup bypassing the
+  Active/Deleted lifecycle gate — required so namespace checks on Delete/Archive/Restore don't
+  break their existing idempotent-on-tombstone behavior (`get_memory` would 410 on a
+  already-Deleted memory before idempotency logic runs).
+* `ImportEngine.import_bundle` gained an additive `allowed_namespaces` param (default `None` =
+  unrestricted); a disallowed entry is `rejected` like any other validation failure, not a
+  whole-bundle failure.
+* Rate limiting is single-process/in-memory by design — matches SQLite's single-writer model;
+  do not run the Docker image with `--workers > 1` (documented limitation, see `22-deployment.md`).
+* `mip/core/errors.py` was split into a package (`errors/base.py` + `errors/factories.py`,
+  re-exported from `errors/__init__.py`) to stay under the 300-line file budget after adding the
+  5 new `MEM-8001..8005` codes — zero change to any import path (`from mip.core import errors`
+  still works identically).
+* New error codes: `MEM-8001` missing API key · `MEM-8002` invalid API key · `MEM-8003` namespace
+  forbidden · `MEM-8004` namespace required · `MEM-8005` rate limit exceeded.
 
 ## Last completed milestone
 
-Phase 4 — Intelligence, 2026-07-09 (09-phase-plan.md acceptance criteria met: graph
-regenerable from Memory Objects, consolidation never loses history, export→import
-round-trips losslessly — all verified by dedicated tests plus a live end-to-end run).
+Production Hardening (ADR-0007), 2026-07-09: API-key auth + namespace isolation (opt-in), rate
+limiting (opt-in), Docker packaging — full stack (backend, both SDKs, CLI, console) updated, all
+gates green, zero behavior change when disabled (the default).
 
 ## Next milestone
 
-No Phase 5 is defined in `09-phase-plan.md` — the four-phase roadmap is complete.
-**Blocked on: user direction** for what comes next (hardening/production-readiness pass,
-sync engine, or a new phase to scope).
+`09-phase-plan.md`'s four phases plus hardening are now all complete. **Blocked on: user
+direction** for what comes next (Synchronization Engine, console UX polish, or a new initiative).
 
 ## Known issues / open questions
 
-* `30-memory/02-memory-schema.md` still lists the old 7-state enum; needs the additive
-  edit recorded in ADR-0003 (user-owned normative doc, open since Phase 1).
+* `30-memory/02-memory-schema.md` still lists the old 7-state enum; needs the additive edit
+  recorded in ADR-0003 (user-owned normative doc, open since Phase 1).
+* No admin-only API-key tier — any valid key can call `rebuild-projections` (accepted trade-off
+  for the lightweight auth tier; see ADR-0007 known limitations).
 * Nothing committed to git this session; commit on request.
