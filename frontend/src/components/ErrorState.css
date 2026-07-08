@@ -1,0 +1,31 @@
+.error-state {
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: var(--radius-card);
+}
+
+.error-state__code {
+  color: var(--danger);
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.error-state__message {
+  margin: 0 0 var(--space-2);
+}
+
+.error-state__actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.error-state__actions button {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  min-height: 40px;
+}

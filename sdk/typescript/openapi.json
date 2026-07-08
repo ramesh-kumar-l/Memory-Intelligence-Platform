@@ -1,0 +1,1352 @@
+{
+  "components": {
+    "schemas": {
+      "Context": {
+        "description": "Section 6 \u2014 retrieval context. Mutable by design (not part of version identity).",
+        "properties": {
+          "access_frequency": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Access Frequency",
+            "type": "integer"
+          },
+          "goals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
+          "importance_score": {
+            "default": 0.5,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Importance Score",
+            "type": "number"
+          },
+          "last_accessed": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Accessed"
+          },
+          "recency_score": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Recency Score",
+            "type": "number"
+          },
+          "relevance_tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Relevance Tags",
+            "type": "array"
+          }
+        },
+        "title": "Context",
+        "type": "object"
+      },
+      "ContextRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "continuation_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Token"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "mode": {
+            "default": "hybrid",
+            "title": "Mode",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          }
+        },
+        "title": "ContextRequest",
+        "type": "object"
+      },
+      "CreateMemoryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 0.5,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "extensions": {
+            "additionalProperties": true,
+            "title": "Extensions",
+            "type": "object"
+          },
+          "freshness": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Freshness",
+            "type": "number"
+          },
+          "language": {
+            "default": "en",
+            "title": "Language",
+            "type": "string"
+          },
+          "namespace": {
+            "minLength": 1,
+            "title": "Namespace",
+            "type": "string"
+          },
+          "object_type": {
+            "$ref": "#/components/schemas/ObjectType",
+            "default": "Experience"
+          },
+          "owner_id": {
+            "minLength": 1,
+            "title": "Owner Id",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "relationships": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RelationshipSpec"
+            },
+            "title": "Relationships",
+            "type": "array"
+          },
+          "semantics": {
+            "$ref": "#/components/schemas/Semantics"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/VerificationStatus",
+            "default": "Unknown"
+          }
+        },
+        "required": [
+          "namespace",
+          "owner_id",
+          "title",
+          "provenance"
+        ],
+        "title": "CreateMemoryRequest",
+        "type": "object"
+      },
+      "ExplainRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "mode": {
+            "default": "hybrid",
+            "title": "Mode",
+            "type": "string"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          }
+        },
+        "required": [
+          "memory_id"
+        ],
+        "title": "ExplainRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ObjectType": {
+        "enum": [
+          "Experience",
+          "Episode",
+          "Semantic",
+          "Relationship",
+          "Context",
+          "Working",
+          "Learned",
+          "System"
+        ],
+        "title": "ObjectType",
+        "type": "string"
+      },
+      "Provenance": {
+        "description": "Where the memory came from \u2014 required for activation (INV-TRUST-001).",
+        "properties": {
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "source": {
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Provenance",
+        "type": "object"
+      },
+      "RelationshipDirection": {
+        "enum": [
+          "outbound",
+          "inbound",
+          "bidirectional"
+        ],
+        "title": "RelationshipDirection",
+        "type": "string"
+      },
+      "RelationshipSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RelationshipDirection",
+            "default": "outbound"
+          },
+          "target_memory_id": {
+            "format": "uuid",
+            "title": "Target Memory Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "unresolved": {
+            "default": false,
+            "title": "Unresolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "target_memory_id",
+          "type"
+        ],
+        "title": "RelationshipSpec",
+        "type": "object"
+      },
+      "RelationshipType": {
+        "enum": [
+          "contains",
+          "references",
+          "duplicate_of",
+          "derived_from",
+          "related_to",
+          "occurred_before",
+          "occurred_after",
+          "caused_by",
+          "supports",
+          "contradicts",
+          "supersedes"
+        ],
+        "title": "RelationshipType",
+        "type": "string"
+      },
+      "SearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "continuation_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Token"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "mode": {
+            "default": "hybrid",
+            "title": "Mode",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          }
+        },
+        "title": "SearchRequest",
+        "type": "object"
+      },
+      "Semantics": {
+        "description": "Section 4 \u2014 machine-readable understanding.",
+        "properties": {
+          "activities": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Activities",
+            "type": "array"
+          },
+          "concepts": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Concepts",
+            "type": "array"
+          },
+          "entities": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "events": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent"
+          },
+          "keywords": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Keywords",
+            "type": "array"
+          },
+          "locations": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "sentiment": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment"
+          },
+          "timestamps": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Timestamps",
+            "type": "array"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "title": "Semantics",
+        "type": "object"
+      },
+      "UpdateMemoryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Context"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "extensions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extensions"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "relationships": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RelationshipSpec"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationships"
+          },
+          "semantics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Semantics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "update_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Update Reason"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "UpdateMemoryRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationStatus": {
+        "enum": [
+          "Unknown",
+          "Unverified",
+          "PartiallyVerified",
+          "Verified",
+          "Disputed"
+        ],
+        "title": "VerificationStatus",
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "title": "Memory Intelligence Platform",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/admin/rebuild-projections": {
+      "post": {
+        "description": "Rebuild all projections from the event log; `identical: true` proves\nreplay reproduces the exact pre-rebuild state (INV-CONS-004).",
+        "operationId": "rebuild_projections_v1_admin_rebuild_projections_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rebuild Projections",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/context": {
+      "post": {
+        "operationId": "build_context_v1_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Context",
+        "tags": [
+          "retrieval"
+        ]
+      }
+    },
+    "/v1/explain": {
+      "post": {
+        "operationId": "explain_memory_v1_explain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Explain Memory",
+        "tags": [
+          "retrieval"
+        ]
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "health_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/memories": {
+      "get": {
+        "operationId": "list_memories_v1_memories_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "continuation_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Continuation Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memories",
+        "tags": [
+          "memories"
+        ]
+      },
+      "post": {
+        "operationId": "create_memory_v1_memories_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMemoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Memory",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/{memory_id}": {
+      "delete": {
+        "operationId": "delete_memory_v1_memories__memory_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Memory",
+        "tags": [
+          "memories"
+        ]
+      },
+      "get": {
+        "operationId": "get_memory_v1_memories__memory_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Memory",
+        "tags": [
+          "memories"
+        ]
+      },
+      "patch": {
+        "operationId": "update_memory_v1_memories__memory_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Memory",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/{memory_id}/archive": {
+      "post": {
+        "operationId": "archive_memory_v1_memories__memory_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Memory",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/{memory_id}/restore": {
+      "post": {
+        "operationId": "restore_memory_v1_memories__memory_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Memory",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/memories/{memory_id}/versions": {
+      "get": {
+        "operationId": "list_versions_v1_memories__memory_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions",
+        "tags": [
+          "memories"
+        ]
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "operationId": "search_memories_v1_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Memories",
+        "tags": [
+          "retrieval"
+        ]
+      }
+    },
+    "/v1/version": {
+      "get": {
+        "operationId": "version_v1_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version",
+        "tags": [
+          "admin"
+        ]
+      }
+    }
+  }
+}

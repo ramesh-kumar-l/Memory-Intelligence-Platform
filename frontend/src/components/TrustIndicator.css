@@ -1,0 +1,36 @@
+.trust-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.trust-indicator__value {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.trust-indicator__bar {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.trust-indicator__segment {
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.trust-indicator__segment--filled {
+  background: var(--accent);
+}
+
+.trust-indicator__why {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-control);
+}

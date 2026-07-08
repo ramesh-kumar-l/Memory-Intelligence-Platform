@@ -1,0 +1,103 @@
+.memory-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  max-width: var(--detail-pane-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.memory-detail__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.memory-detail__header h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.memory-detail__header button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: var(--text-h2);
+  line-height: 1;
+}
+
+.memory-detail__tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.memory-detail__tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--text-muted);
+  min-height: 40px;
+}
+
+.memory-detail__tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.memory-detail__grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.memory-detail__grid dt {
+  color: var(--text-muted);
+  font-size: var(--text-body-sm);
+}
+
+.memory-detail__grid dd {
+  margin: 0;
+}
+
+.memory-detail__relationships {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.memory-detail__trust {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.memory-detail__actions {
+  display: flex;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+
+.memory-detail__actions button {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.memory-detail__danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  margin-left: auto;
+}

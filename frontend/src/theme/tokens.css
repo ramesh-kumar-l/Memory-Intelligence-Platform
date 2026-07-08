@@ -1,0 +1,76 @@
+/* Design tokens — 18-ui-design-system.md. One accent color, strict scales. */
+
+:root {
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --border: #e7e5e4;
+  --text: #1c1917;
+  --text-muted: #78716c;
+  --accent: #2563eb;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b91c1c;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-control: 6px;
+  --radius-card: 10px;
+
+  --font-ui: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", monospace;
+
+  --text-meta: 12px;
+  --text-body-sm: 13px;
+  --text-body: 14px;
+  --text-h3: 16px;
+  --text-h2: 20px;
+  --text-h1: 24px;
+
+  --max-content-width: 1200px;
+  --detail-pane-width: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101113;
+    --surface: #1a1c1f;
+    --border: #2c2f33;
+    --text: #ecedee;
+    --text-muted: #9ba1a6;
+    --accent: #60a5fa;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --danger: #f87171;
+  }
+}
+
+/* Manual override wins over the OS preference either direction. */
+:root[data-theme="dark"] {
+  --bg: #101113;
+  --surface: #1a1c1f;
+  --border: #2c2f33;
+  --text: #ecedee;
+  --text-muted: #9ba1a6;
+  --accent: #60a5fa;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+}
+
+:root[data-theme="light"] {
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --border: #e7e5e4;
+  --text: #1c1917;
+  --text-muted: #78716c;
+  --accent: #2563eb;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b91c1c;
+}

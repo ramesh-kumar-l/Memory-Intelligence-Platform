@@ -1,0 +1,39 @@
+.memories-page__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.memories-page__filters input {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 40px;
+}
+
+.memories-page__panes {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.memories-page__list {
+  flex: 1 1 320px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.memories-page__detail {
+  flex: 1 1 480px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .memories-page__panes {
+    flex-direction: column;
+  }
+}

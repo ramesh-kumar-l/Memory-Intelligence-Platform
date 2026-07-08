@@ -1,0 +1,9 @@
+{
+  "name": "memory-intelligence-platform",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "sdk/typescript"
+  ]
+}

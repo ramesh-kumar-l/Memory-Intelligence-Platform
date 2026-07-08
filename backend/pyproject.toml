@@ -37,7 +37,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.mypy]
 strict = true
 warn_unreachable = true
-files = ["mip", "tests"]
+files = ["mip", "tests", "scripts"]
 
 [[tool.mypy.overrides]]
 # sqlite-vec ships no type stubs/py.typed marker; this is the standard mypy

@@ -6,41 +6,51 @@
 
 ---
 
-## Status: Phase 2 — Retrieval & Explainability COMPLETE (all gates green)
+## Status: Phase 3 — Developer Platform COMPLETE (all gates green)
 
 | Area | State |
 | --- | --- |
 | Specifications | ✅ Complete (`30-memory/01–06`); lifecycle enum drift resolved by ADR-0003 |
 | Engineering OS | ✅ `CLAUDE.md` v2.0 + Constitution; operational docs 03/05/08/09/18/20/21 |
-| Decisions | ✅ ADR-0001 Python/FastAPI/SQLite · ADR-0002 React/TS/Vite · ADR-0003 lifecycle/deletion · ADR-0004 retrieval/explainability architecture |
+| Decisions | ✅ ADR-0001 Python/FastAPI/SQLite · ADR-0002 React/TS/Vite · ADR-0003 lifecycle/deletion · ADR-0004 retrieval/explainability · ADR-0005 developer platform (SDKs/CLI/console) |
 | Backend Phase 1 | ✅ Core domain, 11-state machine, event store, Memory Manager, REST API `/v1` CRUD+lifecycle |
-| Backend Phase 2 | ✅ FTS5 keyword index, sqlite-vec semantic index, hybrid ranking, `/v1/search`, `/v1/explain`, `/v1/context`, real enrichment, basic Trust scoring |
-| Tests / gates | ✅ ~276 tests green; ruff + mypy --strict clean; coverage 98.07% |
-| Frontend / SDKs / CLI | ❌ Not started (Phase 3) |
+| Backend Phase 2 | ✅ FTS5/sqlite-vec retrieval, hybrid ranking, `/v1/search`, `/v1/explain`, `/v1/context`, enrichment, Trust scoring |
+| Phase 3 — SDKs | ✅ `sdk/python` (mip_sdk, httpx), `sdk/typescript` (@mip/sdk, fetch, OpenAPI-generated request types) |
+| Phase 3 — CLI | ✅ `cli` (mip_cli, Click, built on mip_sdk) — memories/search/explain/context/admin commands |
+| Phase 3 — Console | ✅ `frontend` (React 18/TS/Vite) — Memories, Search, Settings pages; design-system components |
+| Tests / gates | ✅ Backend 98.07% · sdk/python 30 tests · cli 16 tests · sdk/typescript 29 tests · frontend 45 tests — all ruff/mypy/eslint/tsc clean |
 | Graph / learn / export | ❌ Not started (Phase 4) |
 
 ## What works right now
 
-Everything from Phase 1, plus: `POST /v1/search` (`mode`: keyword/semantic/hybrid, namespace filter, opaque self-contained continuation tokens), `POST /v1/explain` (confidence, dynamic freshness, provenance, evidence, and — with a query — a ranking breakdown), `POST /v1/context` (Context Package blending search relevance with each memory's own importance score). Every Create/Update now runs real enrichment (derived keywords merged into `semantics.keywords`) and basic Trust confidence derivation (blend of client input + verification_status/source_count heuristic) *after* the Phase 1 activation gate — enrichment augments valid content, it never rescues invalid input. `POST /v1/admin/rebuild-projections` now also re-derives both indexes from current Memory Objects and reports `indexed_memories`.
+Everything from Phase 1/2, plus a full developer platform: **Python SDK** (`sdk/python`,
+`pip install -e sdk/python`) and **TypeScript SDK** (`sdk/typescript`, `@mip/sdk`) both
+wrap the full `/v1` surface (memories CRUD/lifecycle, search/explain/context, admin)
+with typed `MEM-*` error hierarchies. **CLI** (`cli`, `mip` command) is a thin Click
+wrapper over the Python SDK. **Console** (`frontend`, npm workspace linked to
+`sdk/typescript`) has Memories (list + Overview/Semantics/Relationships/Trust/History
+detail tabs), Search (per-result "Why this result?"), and Settings pages, following
+`18-ui-design-system.md` (light/dark, keyboard nav, empty/error states). All three
+runnable quickstart examples (`examples/{python,typescript,cli}`) were executed
+against a live backend during this session, not just written.
 
 ## Key implementation facts (for future sessions)
 
-* New packages: `mip/providers/` (`EmbeddingProviderABC` + default `LocalHashingEmbeddingProvider`, deterministic offline feature-hashing — not deep semantic understanding), `mip/engines/{semantic,trust,retrieval,context}/`.
-* Indexes (`mip/storage/sqlite/search_index.py` FTS5, `vector_index.py` sqlite-vec) are write-time side effects of Create/Update, **not** event-sourced; `rebuild_indexes()` re-derives them from live Memory Objects — deterministic because embedding is a pure function of text (ADR-0004).
-* Search/Context only surface `Active` memories (Archived = "removed from active retrieval"); filtering happens at query time against the `memories` projection, so index rows are never deleted on archive/delete.
-* Continuation tokens for Search/Context are self-contained (`srch:` + base64 JSON of query/mode/namespace/offset) — no server-side session state.
-* `sqlite-vec` and FTS5 both confirmed working on this Python 3.14/Windows environment; `sqlite-vec` needs `[[tool.mypy.overrides]] module="sqlite_vec"` (no stubs).
-* Quality gate (from `backend/`, venv `.venv`): `ruff check . ; ruff format --check . ; mypy ; pytest`.
+* `sdk/python`/`cli`/`sdk/typescript`/`frontend` each have their own venv/`node_modules` and quality-gate config; none import backend internals — REST only (FR-API-001).
+* `GET /v1/memories` (list) and `.../versions` return **lightweight projections** (`MemoryRecord`, `VersionInfo`), not full `MemoryObject` — a real shape mismatch was caught and fixed in both SDKs during this session (see ADR-0005 / session handoff).
+* TS SDK: request types generated via `openapi-typescript` (`backend/scripts/export_openapi.py` → `sdk/typescript/openapi.json` → `npm run generate:types`); response types are hand-written in `src/types.ts` because backend routes return raw `JSONResponse`, not `response_model=`-typed bodies — OpenAPI has no response schema to generate from.
+* Console has no Graph or global Events page — Graph is Phase 4; a per-memory History tab (version list) substitutes for a global event feed, which has no backing endpoint yet.
+* Quality gates: backend `ruff/mypy/pytest`; sdk/python and cli same; sdk/typescript `eslint/tsc/vitest/tsc-build`; frontend same. All 5 run from their own directory with their own venv/node_modules.
 
 ## Last completed milestone
 
-Phase 2 — Retrieval & Explainability, 2026-07-08 (all `09-phase-plan.md` acceptance criteria verified).
+Phase 3 — Developer Platform, 2026-07-08 (all `09-phase-plan.md` acceptance criteria verified: console passes design-system checklist item-by-item, SDKs preserve contract semantics with typed errors, all three quickstarts run end-to-end on this machine).
 
 ## Next milestone
 
-Phase 3 — Developer Platform (console, SDKs, CLI). **Blocked on: user approval to begin.**
+Phase 4 — Intelligence (knowledge graph, Consolidate, Learn, Export/Import, trust maturation). **Blocked on: user approval to begin.**
 
 ## Known issues / open questions
 
 * `30-memory/02-memory-schema.md` still lists the old 7-state enum; needs the additive edit recorded in ADR-0003 (user-owned normative doc).
-* Nothing committed to git yet; commit on request.
+* Nothing committed to git this session either; commit on request.
